@@ -1,0 +1,70 @@
+:root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --border-color: #E5E7EB;
+  --accent-color: #3B82F6;
+  --hover-bg: #F1F5F9;
+
+  /* backwards compatibility for h-* mapping */
+  --h-bg: var(--bg-primary);
+  --h-sec: var(--bg-secondary);
+  --h-card: var(--card-bg);
+  --h-primary: var(--text-primary);
+  --h-secondary: var(--text-secondary);
+  --h-border: var(--border-color);
+}
+
+.dark {
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --card-bg: #1E293B;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --accent-color: #3B82F6;
+  --hover-bg: #334155;
+
+  /* backwards compatibility */
+  --h-bg: var(--bg-primary);
+  --h-sec: var(--bg-secondary);
+  --h-card: var(--card-bg);
+  --h-primary: var(--text-primary);
+  --h-secondary: var(--text-secondary);
+  --h-border: var(--border-color);
+}
+
+/* Theme Input Styles */
+.theme-input {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  color: #111827;
+  transition: all 250ms ease-in-out;
+}
+
+.theme-input::placeholder {
+  color: #9CA3AF;
+}
+
+.theme-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.dark .theme-input {
+  background-color: #0F172A;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.dark .theme-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.dark .theme-input:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
