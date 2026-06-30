@@ -69,13 +69,13 @@ const aiService = {
           },
           body: JSON.stringify({ subjectName, topicName })
         });
-        const result = await response.json();
-        if (result.success) {
-          const uid = auth.currentUser?.uid || 'anonymous';
-          await notificationService.notifyStudent(uid, 'Notes generated', `Your notes for "${topicName}" in "${subjectName}" are ready.`, 'notes', '📝');
-          return result.data;
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to generate notes");
         }
-        throw new Error(result.message || "Failed to generate notes");
+        const uid = auth.currentUser?.uid || 'anonymous';
+        await notificationService.notifyStudent(uid, 'Notes generated', `Your notes for "${topicName}" in "${subjectName}" are ready.`, 'notes', '📝');
+        return data.data;
       } catch (error) {
         console.error("AI generation failed:", error);
         return {
@@ -123,11 +123,11 @@ const aiService = {
           },
           body: JSON.stringify({ subjectName, topicName })
         });
-        const result = await response.json();
-        if (result.success) {
-          return result.data;
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to generate flashcards");
         }
-        throw new Error(result.message || "Failed to generate flashcards");
+        return data.data;
       } catch (error) {
         console.error("AI generation failed:", error);
         return [];
@@ -160,11 +160,11 @@ const aiService = {
           },
           body: JSON.stringify({ subjectName, sectionName, questionType, count, marksPerQuestion, topicsList, customDifficulty })
         });
-        const result = await response.json();
-        if (result.success) {
-          return result.data;
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to generate mock exam");
         }
-        throw new Error(result.message || "Failed to generate mock exam");
+        return data.data;
       } catch (error) {
         console.error("AI generation failed:", error);
         return [];
@@ -208,11 +208,11 @@ const aiService = {
           },
           body: JSON.stringify({ userQuestion })
         });
-        const result = await response.json();
-        if (result.success) {
-          return result.data;
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed AI call");
         }
-        throw new Error(result.message || "Failed AI call");
+        return data.data;
       } catch (error) {
         console.error("AI generation failed:", error);
         return "AI generation failed. Check console logs.";
@@ -249,13 +249,13 @@ const aiService = {
           },
           body: JSON.stringify({ subjectName, topics, examDate, studyHours })
         });
-        const result = await response.json();
-        if (result.success) {
-          const uid = auth.currentUser?.uid || 'anonymous';
-          await notificationService.notifyStudent(uid, 'Study roadmap ready', `Custom roadmap for "${subjectName}" is prepared.`, 'study_plan', '📅');
-          return result.data;
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to generate study plan");
         }
-        throw new Error(result.message || "Failed to generate study plan");
+        const uid = auth.currentUser?.uid || 'anonymous';
+        await notificationService.notifyStudent(uid, 'Study roadmap ready', `Custom roadmap for "${subjectName}" is prepared.`, 'study_plan', '📅');
+        return data.data;
       } catch (error) {
         console.error("AI generation failed:", error);
         return topics.map((topic, idx) => ({
@@ -273,7 +273,7 @@ const aiService = {
         const topicsText = topics.map(t => typeof t === 'string' ? t : t.title).join(", ");
         const prompt = `Create a custom day-by-day study roadmap for the course "${subjectName}" with topics: [${topicsText}]. 
         The exam is on ${examDate} and the student studies ${studyHours} hours per day.
-        Return strictly a valid JSON array matching this exact schema:
+        Return strictly a valid JSON array of days matching this structure:
         [{"day": "Day 1", "topic": "Topic Name", "tasks": [{"text": "Task description", "completed": false}], "completed": false}]`;
         
         return await callGemini(prompt);
