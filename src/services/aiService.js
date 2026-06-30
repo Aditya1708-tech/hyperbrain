@@ -6,7 +6,7 @@ const isBrowser = typeof window !== 'undefined';
 
 const API_KEY = (typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined) || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
 
-console.log("Gemini model:", "gemini-1.5-flash-8b");
+console.log("Gemini model:", "gemini-2.5-flash");
 
 let genAI = null;
 let model = null;
@@ -14,7 +14,7 @@ let model = null;
 if (API_KEY) {
   genAI = new GoogleGenerativeAI(API_KEY);
   model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash-8b"
+    model: "gemini-2.5-flash"
   });
 }
 
@@ -26,7 +26,7 @@ const verifyModel = () => {
     }
     genAI = new GoogleGenerativeAI(key);
     model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-8b"
+      model: "gemini-2.5-flash"
     });
   }
 };

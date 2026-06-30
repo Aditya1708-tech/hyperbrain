@@ -101,7 +101,7 @@ const API_KEY = process.env.VITE_GEMINI_API_KEY || (typeof import.meta !== 'unde
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-const modelName = "gemini-1.5-flash-8b";
+const modelName = "gemini-2.5-flash";
 console.log("Gemini model:", modelName);
 console.log("Gemini key exists:", !!API_KEY);
 

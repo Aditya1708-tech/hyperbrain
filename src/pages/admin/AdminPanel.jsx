@@ -1543,7 +1543,7 @@ export default function AdminPanel() {
                     className="w-full px-3 py-2 bg-bg-secondary border border-border-theme rounded-xl text-primary focus-ring"
                   >
                     <option value="gemini-2.5-pro">Gemini 2.5 Pro (Recommended)</option>
-                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Latency Optimised)</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latency Optimised)</option>
                   </select>
                 </div>
 
