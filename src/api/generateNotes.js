@@ -206,19 +206,9 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, cached: false, data: parsedResult });
   } catch (err) {
     console.error("Server API Notes generation failed:", err);
-    return res.status(200).json({
+    return res.status(500).json({
       success: false,
-      message: "AI service temporarily unavailable",
-      fallback: {
-        summary: `This is a study outline of "${topicName}" in "${subjectName}". Offline mode activated due to service timeouts.`,
-        flashcards: [
-          { front: `What is the core concept of ${topicName}?`, back: `Modular abstraction systems in ${subjectName}.` }
-        ],
-        quiz: [
-          { question: `Identify the main model pattern of ${topicName}?`, options: ["Dynamic mapping", "Static cache", "Offline sync", "Legacy model"], answer: "Dynamic mapping", explanation: "Dynamic patterns ensure modular scalability." }
-        ],
-        exam_questions: [`Discuss the integration metrics of ${topicName}.`]
-      }
+      message: "AI generation failed. Check console logs."
     });
   }
 }
