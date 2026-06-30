@@ -142,7 +142,7 @@ export default async function handler(req, res) {
 
   // 3. Call Gemini with timeout protection (Max: 20s)
   const startTime = Date.now();
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyCWP8hv7qD7xmO2ko-5imGigY8GpQTMVpw";
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
   const prompt = `Create comprehensive study content for the topic "${topicName}" in the course "${subjectName}". 

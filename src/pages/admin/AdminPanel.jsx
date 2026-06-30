@@ -134,7 +134,7 @@ export default function AdminPanel() {
   // Login handler
   const handleLogin = (e) => {
     e.preventDefault();
-    if (username.trim() === "Aditya" && password.trim() === "HelloWorld!") {
+    if (username.trim() === "Aditya" && password.trim() === (import.meta.env.VITE_ADMIN_PASSWORD || "HelloWorld!")) {
       setIsAuthenticated(true);
       setAuthError('');
     } else {
