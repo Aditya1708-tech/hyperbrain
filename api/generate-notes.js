@@ -99,7 +99,12 @@ async function setFirestoreDoc(collection, docId, jsObj) {
 const model = {
   async generateContent(prompt) {
     const API_KEY = process.env.VITE_GEMINI_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+    const modelName = "gemini-1.5-flash";
+    
+    console.log("Gemini key exists:", !!API_KEY);
+    console.log("Model:", modelName);
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -108,7 +113,12 @@ const model = {
       })
     });
     if (!response.ok) {
-      throw new Error(`Gemini status code ${response.status}`);
+      let errBody = "";
+      try {
+        errBody = await response.text();
+      } catch (e) {}
+      console.error(`Gemini status code ${response.status}. Error body: ${errBody}`);
+      throw new Error(`Gemini status code ${response.status}. Body: ${errBody}`);
     }
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";

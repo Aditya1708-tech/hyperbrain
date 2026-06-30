@@ -19,7 +19,11 @@ const verifyKey = () => {
 };
 
 const getGeminiUrl = () => {
-  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getApiKey()}`;
+  const modelName = "gemini-1.5-flash";
+  const apiKey = getApiKey();
+  console.log("Gemini key exists:", !!apiKey);
+  console.log("Model:", modelName);
+  return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 };
 
 async function callGemini(prompt) {
@@ -39,7 +43,12 @@ async function callGemini(prompt) {
 
   const response = await Promise.race([fetchPromise, timeoutPromise]);
   if (!response.ok) {
-    throw new Error(`Gemini status code ${response.status}`);
+    let errBody = "";
+    try {
+      errBody = await response.text();
+    } catch (e) {}
+    console.error(`Gemini status code ${response.status}. Error body: ${errBody}`);
+    throw new Error(`Gemini status code ${response.status}. Body: ${errBody}`);
   }
 
   const data = await response.json();
