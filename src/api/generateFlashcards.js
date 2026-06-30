@@ -1,4 +1,4 @@
-import brainService from '../services/brainService.js';
+import aiService from "@/services/aiService";
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -139,7 +139,7 @@ export default async function handler(req, res) {
   // 3. Call Gemini via brainService
   const startTime = Date.now();
   try {
-    const result = await brainService.generateFlashcards(subjectName, topicName);
+    const result = await aiService.generateFlashcards(subjectName, topicName);
     const parsed = result.parsed;
 
     // Save cache

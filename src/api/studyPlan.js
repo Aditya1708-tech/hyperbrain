@@ -1,3 +1,4 @@
+import aiService from "@/services/aiService";
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -135,49 +136,11 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
   }
 
-  // 3. Call Gemini (Max 20s)
+  // 3. Call Gemini via aiService
   const startTime = Date.now();
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  const topicsText = topics.map(t => typeof t === 'string' ? t : t.title).join(", ");
-  const prompt = `Create a custom day-by-day study roadmap for the course "${subjectName}" with topics: [${topicsText}]. 
-  The exam is on ${examDate} and the student studies ${studyHours} hours per day.
-  Return strictly a valid JSON array of days matching this structure:
-  [
-    {
-      "day": "Monday",
-      "topic": "Topic Name",
-      "tasks": [
-        {"text": "Task details 1", "completed": false},
-        {"text": "Task details 2", "completed": false}
-      ],
-      "completed": false
-    }
-  ]`;
-
   try {
-    const fetchPromise = fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request Timeout")), 20000)
-    );
-
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
-    if (!response.ok) {
-      throw new Error(`Gemini status code ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(cleanJson);
+    const result = await aiService.generateStudyPlan(subjectName, topics, examDate, studyHours);
+    const parsed = result.parsed;
 
     // Save cache
     await setFirestoreDoc('ai_cache', cacheKey, { result: parsed });
@@ -193,7 +156,7 @@ export default async function handler(req, res) {
 
     // Log stats
     const responseTime = Date.now() - startTime;
-    const tokens = data.usageMetadata?.totalTokens || 640;
+    const tokens = result.totalTokens || 640;
     const logId = `${userId}_study_plans_${Date.now()}`;
     await setFirestoreDoc('ai_logs', logId, {
       userId,

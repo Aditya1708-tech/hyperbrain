@@ -7,7 +7,7 @@ import { ThemeContext } from '../../contexts/ThemeContext';
 import { FileText, Calendar, Clock, Sparkles, CheckCircle2, Menu, Sun, Moon, Loader2, ShieldAlert } from 'lucide-react';
 import Card from '../../components/common/Card';
 import { userService } from '../../services/firebase/userService';
-import { tutorService } from '../../services/ai/tutorService';
+import aiService from "@/services/aiService";
 
 export default function StudyPlanScreen() {
   const navigate = useNavigate();
@@ -172,7 +172,7 @@ export default function StudyPlanScreen() {
 
     try {
       // Query Gemini study plan generator
-      const generatedRoadmap = await tutorService.generateStudyPlan(
+      const generatedRoadmap = await aiService.generateStudyPlan(
         selectedCourse.subject_name,
         topics,
         examDate,

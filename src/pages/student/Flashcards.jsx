@@ -7,7 +7,7 @@ import { ThemeContext } from '../../contexts/ThemeContext';
 import { BookOpen, RefreshCw, ChevronLeft, ChevronRight, Menu, Sun, Moon, Sparkles, Loader2, ShieldAlert } from 'lucide-react';
 import Card from '../../components/common/Card';
 import { userService } from '../../services/firebase/userService';
-import { flashcardService } from '../../services/ai/flashcardService';
+import aiService from "@/services/aiService";
 
 export default function FlashcardsScreen() {
   const navigate = useNavigate();
@@ -149,7 +149,7 @@ export default function FlashcardsScreen() {
       setIsLimitReached(false);
       
       // Perform Gemini Flashcards query
-      const generated = await flashcardService.generateFlashcards(selectedCourse.subject_name, selectedTopic.title);
+      const generated = await aiService.generateFlashcards(selectedCourse.subject_name, selectedTopic.title);
       
       // Save result in user doc path
       await setDoc(docRef, {

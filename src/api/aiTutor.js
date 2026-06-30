@@ -1,3 +1,4 @@
+import aiService from "@/services/aiService";
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -127,42 +128,10 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
   }
 
-  // 2. Call Gemini (Max 20s)
+  // 2. Call Gemini via aiService
   const startTime = Date.now();
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  const systemInstruction = `
-  You are a precise mobile tutor. 
-  Rules:
-  1. Answer in strictly under 60 words.
-  2. Use bullet points for lists.
-  3. Do not use conversational filler.
-  4. Focus on the direct syllabus answer only.
-  `;
-
-  const prompt = `${systemInstruction}\n\nUser Question: ${userQuestion}`;
-
   try {
-    const fetchPromise = fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request Timeout")), 20000)
-    );
-
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
-    if (!response.ok) {
-      throw new Error(`Gemini status code ${response.status}`);
-    }
-
-    const data = await response.json();
-    const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text || "No answer generated.";
+    const textResult = await aiService.generateTutorResponse(userQuestion);
 
     // Save usage count
     await setFirestoreDoc('ai_usage', usageId, {
@@ -175,7 +144,7 @@ export default async function handler(req, res) {
 
     // Log stats
     const responseTime = Date.now() - startTime;
-    const tokens = data.usageMetadata?.totalTokens || 120;
+    const tokens = 120;
     const logId = `${userId}_ai_tutor_${Date.now()}`;
     await setFirestoreDoc('ai_logs', logId, {
       userId,

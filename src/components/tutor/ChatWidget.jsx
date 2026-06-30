@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, Loader2 } from 'lucide-react';
-import brainService from '../../services/brainService';
+import aiService from "@/services/aiService";
 
 export default function ChatWidget() {
   const [messages, setMessages] = useState([]);
@@ -16,7 +16,7 @@ export default function ChatWidget() {
     try {
       const now = new Date().toLocaleString();
       const hiddenPrompt = `Current System Time: ${now}. User Question: ${text}`;
-      const response = await brainService.sendMessage(hiddenPrompt);
+      const response = await aiService.generateTutorResponse(hiddenPrompt);
       setMessages((prev) => [...prev, { role: 'ai', text: response }]);
     } catch (err) {
       console.error(err);

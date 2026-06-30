@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase/firebase';
-import { tutorService } from '../../services/ai/tutorService';
+import aiService from "@/services/aiService";
 import Sidebar from '../../components/layout/Sidebar';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { Sparkles, Send, Loader2, MessageSquare, BookOpen, Menu, Sun, Moon } from 'lucide-react';
@@ -162,7 +162,7 @@ export default function TutorScreen() {
       const topicName = selectedTopic ? selectedTopic.title : "General Concept";
       const contextPrompt = `Context: Course=${courseName} Topic=${topicName}. Respond strictly based on this curriculum concept. Question: ${text}`;
       
-      const response = await tutorService.sendMessage(contextPrompt);
+      const response = await aiService.generateTutorResponse(contextPrompt);
       setMessages(prev => [...prev, { role: 'ai', text: response }]);
       if (uid) {
         await userService.incrementUsage(uid, 'ai_tutor');

@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase/firebase';
-import { notesService } from '../../services/ai/notesService';
-import { examService } from '../../services/ai/examService';;
+import aiService from "@/services/aiService";
 import { analyticsService } from '../../services/firebase/firestoreService';
 import { BookOpen, CheckCircle2, XCircle, AlertCircle, RefreshCw, Loader2, Sparkles, ShieldAlert } from 'lucide-react';
 import { userService } from '../../services/firebase/userService';
@@ -45,7 +44,7 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
       try {
         console.log(`[Background AI] Pre-generating adjacent module: ${topic.title}`);
         const startTime = Date.now();
-        const generated = await notesService.generateTopicContent(subjectName, topic.title);
+        const generated = await aiService.generateNotes(subjectName, topic.title);
         const latencyMs = Date.now() - startTime;
 
         analyticsService.logAiSession(subjectName, topic.title, 'background_pregen', latencyMs, 1200, true);
@@ -149,7 +148,7 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
       
       setLoadingPhase('notes');
       const startTime = Date.now();
-      const generated = await notesService.generateTopicContent(subjectName, topicName);
+      const generated = await aiService.generateNotes(subjectName, topicName);
       const latencyMs = Date.now() - startTime;
 
       analyticsService.logAiSession(subjectName, topicName, 'notes', latencyMs, 1400, true);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { examService } from '../../services/ai/examService';
+import aiService from "@/services/aiService";
 import { auth } from '../../services/firebase/firebase';
 import { ArrowLeft, Award, ClipboardCheck, Loader2, Sparkles, CheckCircle, Monitor, ShieldAlert } from 'lucide-react';
 import { analyticsService } from '../../services/firebase/firestoreService';
@@ -153,7 +153,7 @@ export default function ExamScreen() {
         setProgressPercent(30 + Math.floor((s / blueprint.sections.length) * 60));
         
         const setPromises = ["Set A", "Set B", "Set C"].map(() =>
-          examService.generateExamSection(
+          aiService.generateMockExam(
             subjectName, 
             sec.name, 
             sec.type, 
