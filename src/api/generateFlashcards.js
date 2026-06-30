@@ -1,3 +1,4 @@
+import brainService from '../services/brainService.js';
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -135,37 +136,11 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
   }
 
-  // 3. Call Gemini (Max 20s)
+  // 3. Call Gemini via brainService
   const startTime = Date.now();
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  const prompt = `Create 5 high-quality conceptual flashcards for the topic "${topicName}" in "${subjectName}". 
-  Return strictly a valid JSON array matching this exact schema:
-  [{"front": "Question?", "back": "Detailed answer explanation."}]`;
-
   try {
-    const fetchPromise = fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request Timeout")), 20000)
-    );
-
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
-    if (!response.ok) {
-      throw new Error(`Gemini status code ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(cleanJson);
+    const result = await brainService.generateFlashcards(subjectName, topicName);
+    const parsed = result.parsed;
 
     // Save cache
     await setFirestoreDoc('ai_cache', cacheKey, { result: parsed });
@@ -181,7 +156,7 @@ export default async function handler(req, res) {
 
     // Log stats
     const responseTime = Date.now() - startTime;
-    const tokens = data.usageMetadata?.totalTokens || 480;
+    const tokens = result.totalTokens || 480;
     const logId = `${userId}_flashcards_${Date.now()}`;
     await setFirestoreDoc('ai_logs', logId, {
       userId,

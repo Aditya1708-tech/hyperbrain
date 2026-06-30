@@ -1,3 +1,4 @@
+import brainService from '../services/brainService.js';
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -135,69 +136,11 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
   }
 
-  // 3. Call Gemini (Max 20s)
+  // 3. Call Gemini via brainService
   const startTime = Date.now();
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  const topicsText = topicsList && topicsList.length > 0
-    ? topicsList.map(t => typeof t === 'string' ? t : t.title).join(", ")
-    : "General core principles";
-
-  const prompt = `Act as an academic university examiner for the subject "${subjectName}".
-  Generate EXACTLY ${count} questions for "${sectionName}".
-  
-  Topic Outline: ${topicsText}
-  Difficulty: ${customDifficulty || "Mixed"}
-  
-  CRITICAL REQUIREMENTS:
-  1. Every question must be worth EXACTLY ${marksPerQuestion} marks.
-  2. Return ONLY a valid JSON array matching this exact schema:
-  ${questionType === 'mcq' ? `
-  [
-    {
-      "type": "mcq",
-      "question": "A clear MCQ question?",
-      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-      "answer": "Option 1",
-      "marks": 1,
-      "explanation": "Brief explanation."
-    }
-  ]
-  ` : `
-  [
-    {
-      "type": "theory",
-      "question": "Explain...",
-      "model_answer": "Detailed answer covering expected points.",
-      "marks": ${marksPerQuestion}
-    }
-  ]
-  `}
-  `;
-
   try {
-    const fetchPromise = fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request Timeout")), 20000)
-    );
-
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
-    if (!response.ok) {
-      throw new Error(`Gemini status code ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(cleanJson);
+    const result = await brainService.generateMockExam(subjectName, sectionName, questionType, count, marksPerQuestion, topicsList, customDifficulty);
+    const parsed = result.parsed;
     
     if (Array.isArray(parsed)) {
       const sliced = parsed.slice(0, count);
@@ -215,7 +158,7 @@ export default async function handler(req, res) {
 
       // Log stats
       const responseTime = Date.now() - startTime;
-      const tokens = data.usageMetadata?.totalTokens || 920;
+      const tokens = result.totalTokens || 920;
       const logId = `${userId}_mock_exams_${Date.now()}`;
       await setFirestoreDoc('ai_logs', logId, {
         userId,

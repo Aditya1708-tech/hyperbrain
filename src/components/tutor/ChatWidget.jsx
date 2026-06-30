@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, Loader2 } from 'lucide-react';
-import { brainService } from '../services/brainService';
+import brainService from '../../services/brainService';
 
 export default function ChatWidget() {
   const [messages, setMessages] = useState([]);

@@ -1,3 +1,4 @@
+import brainService from '../services/brainService.js';
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -140,44 +141,11 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
   }
 
-  // 3. Call Gemini with timeout protection (Max: 20s)
+  // 3. Call Gemini via brainService
   const startTime = Date.now();
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-  const prompt = `Create comprehensive study content for the topic "${topicName}" in the course "${subjectName}". 
-      
-  REQUIRED STRUCTURE:
-  1. "summary": Provide a detailed explanation (approx 400 words).
-  2. "flashcards": Create 5-8 key concept cards.
-  3. "quiz": You MUST generate AT LEAST 10 distinct Multiple Choice Questions (MCQs).
-  4. "exam_questions": List 5-7 high-probability theory questions.
-
-  Return strictly valid JSON: 
-  {"summary": "...", "flashcards": [{"front": "Q", "back": "A"}], "quiz": [{"question": "Q?", "options": ["A","B","C","D"], "answer": "A", "explanation": "Why?"}], "exam_questions": ["Q1"]}`;
-
   try {
-    const fetchPromise = fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request Timeout")), 20000)
-    );
-
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
-    if (!response.ok) {
-      throw new Error(`Gemini status code ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsedResult = JSON.parse(cleanJson);
+    const result = await brainService.generateNotes(subjectName, topicName);
+    const parsedResult = result.parsed;
 
     // Save to Firestore Cache
     await setFirestoreDoc('ai_cache', cacheKey, { result: parsedResult });
@@ -193,7 +161,7 @@ export default async function handler(req, res) {
 
     // Log tracking stats
     const responseTime = Date.now() - startTime;
-    const tokens = data.usageMetadata?.totalTokens || 850;
+    const tokens = result.totalTokens || 850;
     const logId = `${userId}_notes_${Date.now()}`;
     await setFirestoreDoc('ai_logs', logId, {
       userId,
