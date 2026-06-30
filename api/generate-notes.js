@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -96,41 +97,17 @@ async function setFirestoreDoc(collection, docId, jsObj) {
   return false;
 }
 
-const model = {
-  async generateContent(prompt) {
-    const API_KEY = process.env.VITE_GEMINI_API_KEY;
-    const modelName = "gemini-1.5-flash";
-    
-    console.log("Gemini key exists:", !!API_KEY);
-    console.log("Model:", modelName);
+const API_KEY = process.env.VITE_GEMINI_API_KEY || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
-    if (!response.ok) {
-      let errBody = "";
-      try {
-        errBody = await response.text();
-      } catch (e) {}
-      console.error(`Gemini status code ${response.status}. Error body: ${errBody}`);
-      throw new Error(`Gemini status code ${response.status}. Body: ${errBody}`);
-    }
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    return {
-      response: {
-        text() {
-          return rawText;
-        }
-      }
-    };
-  }
-};
+const genAI = new GoogleGenerativeAI(API_KEY);
+
+const modelName = "gemini-1.5-flash-8b";
+console.log("Gemini model:", modelName);
+console.log("Gemini key exists:", !!API_KEY);
+
+const model = genAI.getGenerativeModel({
+  model: modelName
+});
 
 export default async function handler(req, res) {
   console.log("REQUEST BODY:", req.body);

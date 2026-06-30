@@ -1,65 +1,35 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { auth } from './firebase/firebase';
 import { notificationService } from './firebase/firestoreService';
 
 const isBrowser = typeof window !== 'undefined';
 
-const getApiKey = () => {
-  if (typeof window !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
-  }
-  return process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-};
+const API_KEY = (typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined) || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
 
-// Verify all environment variables exist before generation
-const verifyKey = () => {
-  const key = getApiKey();
-  if (!key) {
-    throw new Error("Gemini key missing");
-  }
-};
+console.log("Gemini model:", "gemini-1.5-flash-8b");
 
-const getGeminiUrl = () => {
-  const modelName = "gemini-1.5-flash";
-  const apiKey = getApiKey();
-  console.log("Gemini key exists:", !!apiKey);
-  console.log("Model:", modelName);
-  return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-};
+let genAI = null;
+let model = null;
 
-async function callGemini(prompt) {
-  verifyKey();
-  const url = getGeminiUrl();
-  const fetchPromise = fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
-    })
+if (API_KEY) {
+  genAI = new GoogleGenerativeAI(API_KEY);
+  model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash-8b"
   });
-
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Request Timeout")), 20000)
-  );
-
-  const response = await Promise.race([fetchPromise, timeoutPromise]);
-  if (!response.ok) {
-    let errBody = "";
-    try {
-      errBody = await response.text();
-    } catch (e) {}
-    console.error(`Gemini status code ${response.status}. Error body: ${errBody}`);
-    throw new Error(`Gemini status code ${response.status}. Body: ${errBody}`);
-  }
-
-  const data = await response.json();
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-  
-  return {
-    parsed: JSON.parse(cleanJson),
-    totalTokens: data.usageMetadata?.totalTokens || 850
-  };
 }
+
+const verifyModel = () => {
+  if (!model) {
+    const key = (typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined) || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
+    if (!key) {
+      throw new Error("Gemini API key missing");
+    }
+    genAI = new GoogleGenerativeAI(key);
+    model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash-8b"
+    });
+  }
+};
 
 const aiService = {
   initializeModel() {
@@ -99,6 +69,7 @@ const aiService = {
       }
     } else {
       try {
+        verifyModel();
         const prompt = `Create comprehensive study content for the topic "${topicName}" in the course "${subjectName}". 
         REQUIRED STRUCTURE:
         1. "summary": Provide a detailed explanation (approx 400 words).
@@ -108,7 +79,14 @@ const aiService = {
         Return strictly valid JSON: 
         {"summary": "...", "flashcards": [{"front": "Q", "back": "A"}], "quiz": [{"question": "Q?", "options": ["A","B","C","D"], "answer": "A", "explanation": "Why?"}], "exam_questions": ["Q1"]}`;
         
-        return await callGemini(prompt);
+        const result = await model.generateContent(prompt);
+        const rawText = result.response.text();
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        
+        return {
+          parsed: JSON.parse(cleanJson),
+          totalTokens: 850
+        };
       } catch (error) {
         console.error("AI generation failed:", error);
         return {
@@ -146,11 +124,19 @@ const aiService = {
       }
     } else {
       try {
+        verifyModel();
         const prompt = `Create 5 high-quality conceptual flashcards for the topic "${topicName}" in "${subjectName}". 
         Return strictly a valid JSON array matching this exact schema:
         [{"front": "Question?", "back": "Detailed answer explanation."}]`;
         
-        return await callGemini(prompt);
+        const result = await model.generateContent(prompt);
+        const rawText = result.response.text();
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        
+        return {
+          parsed: JSON.parse(cleanJson),
+          totalTokens: 480
+        };
       } catch (error) {
         console.error("AI generation failed:", error);
         return {
@@ -183,6 +169,7 @@ const aiService = {
       }
     } else {
       try {
+        verifyModel();
         const topicsText = topicsList && topicsList.length > 0
           ? topicsList.map(t => typeof t === 'string' ? t : t.title).join(", ")
           : "General core principles";
@@ -198,7 +185,14 @@ const aiService = {
           [{"type": "theory", "question": "Question text?", "model_answer": "Model answer explanation.", "marks": ${marksPerQuestion}}]`;
         }
 
-        return await callGemini(prompt);
+        const result = await model.generateContent(prompt);
+        const rawText = result.response.text();
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+
+        return {
+          parsed: JSON.parse(cleanJson),
+          totalTokens: 920
+        };
       } catch (error) {
         console.error("AI generation failed:", error);
         return {
@@ -231,6 +225,7 @@ const aiService = {
       }
     } else {
       try {
+        verifyModel();
         const systemInstruction = `
         You are a precise mobile tutor. 
         Rules:
@@ -241,8 +236,9 @@ const aiService = {
         `;
         const prompt = `${systemInstruction}\n\nUser Question: ${userQuestion}`;
         
-        const result = await callGemini(prompt);
-        return typeof result.parsed === 'string' ? result.parsed : JSON.stringify(result.parsed);
+        const result = await model.generateContent(prompt);
+        const rawText = result.response.text();
+        return rawText;
       } catch (error) {
         console.error("AI generation failed:", error);
         return "AI generation failed. Check console logs.";
@@ -282,13 +278,21 @@ const aiService = {
       }
     } else {
       try {
+        verifyModel();
         const topicsText = topics.map(t => typeof t === 'string' ? t : t.title).join(", ");
         const prompt = `Create a custom day-by-day study roadmap for the course "${subjectName}" with topics: [${topicsText}]. 
         The exam is on ${examDate} and the student studies ${studyHours} hours per day.
         Return strictly a valid JSON array of days matching this structure:
         [{"day": "Day 1", "topic": "Topic Name", "tasks": [{"text": "Task description", "completed": false}], "completed": false}]`;
         
-        return await callGemini(prompt);
+        const result = await model.generateContent(prompt);
+        const rawText = result.response.text();
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+
+        return {
+          parsed: JSON.parse(cleanJson),
+          totalTokens: 640
+        };
       } catch (error) {
         console.error("AI generation failed:", error);
         return {
