@@ -1,5 +1,3 @@
-import aiService from "../src/services/aiService.js";
-
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -98,7 +96,40 @@ async function setFirestoreDoc(collection, docId, jsObj) {
   return false;
 }
 
+const model = {
+  async generateContent(prompt) {
+    const API_KEY = process.env.VITE_GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
+    if (!response.ok) {
+      throw new Error(`Gemini status code ${response.status}`);
+    }
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    return {
+      response: {
+        text() {
+          return rawText;
+        }
+      }
+    };
+  }
+};
+
 export default async function handler(req, res) {
+  console.log("REQUEST BODY:", req.body);
+  console.log("ENV:", {
+    hasGemini: !!process.env.VITE_GEMINI_API_KEY
+  });
+
+  const startTime = Date.now();
+
   try {
     if (req.method !== 'POST') {
       return res.status(405).json({
@@ -139,43 +170,54 @@ export default async function handler(req, res) {
       return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
     }
 
-    // 3. Call AI Service
-    const startTime = Date.now();
-    const result = await aiService.generateNotes(finalCourse, finalTopic);
-    const parsedResult = result.parsed;
-
-    if (parsedResult.summary && parsedResult.summary.includes("AI generation failed")) {
-      throw new Error("AI generation failed. Check console logs.");
+    // 3. Verify Gemini initialization:
+    const API_KEY = process.env.VITE_GEMINI_API_KEY;
+    if (!API_KEY) {
+      throw new Error("Gemini API key missing in server environment");
     }
 
-    // Save to Cache
-    await setFirestoreDoc('ai_cache', cacheKey, { result: parsedResult });
+    const prompt = `Create comprehensive study content for the topic "${finalTopic}" in the course "${finalCourse}". 
+    REQUIRED STRUCTURE:
+    1. "summary": Provide a detailed explanation (approx 400 words).
+    2. "flashcards": Create 5-8 key concept cards.
+    3. "quiz": You MUST generate AT LEAST 10 distinct Multiple Choice Questions (MCQs).
+    4. "exam_questions": List 5-7 high-probability theory questions.
+    Return strictly valid JSON: 
+    {"summary": "...", "flashcards": [{"front": "Q", "back": "A"}], "quiz": [{"question": "Q?", "options": ["A","B","C","D"], "answer": "A", "explanation": "Why?"}], "exam_questions": ["Q1"]}`;
 
-    // Increment Usage
-    await setFirestoreDoc('ai_usage', usageId, {
-      userId,
-      requestType: "notes",
-      requestCount: count + 1,
-      date: dateStr,
-      createdAt: new Date()
-    });
+    // 4. Wrap Gemini call:
+    try {
+      console.log("Sending request to Gemini...");
+      const result = await model.generateContent(prompt);
+      console.log("Gemini success");
 
-    // Log tracking stats
-    const responseTime = Date.now() - startTime;
-    const tokens = result.totalTokens || 850;
-    const logId = `${userId}_notes_${Date.now()}`;
-    await setFirestoreDoc('ai_logs', logId, {
-      userId,
-      requestType: "notes",
-      tokens,
-      responseTime,
-      timestamp: new Date()
-    });
+      const rawText = result.response.text();
+      const parsedResult = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
 
-    return res.status(200).json({
-      success: true,
-      data: parsedResult
-    });
+      // Save to Cache
+      await setFirestoreDoc('ai_cache', cacheKey, { result: parsedResult });
+
+      // Increment Usage
+      await setFirestoreDoc('ai_usage', usageId, {
+        userId,
+        requestType: "notes",
+        requestCount: count + 1,
+        date: dateStr,
+        createdAt: new Date()
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: rawText
+      });
+    } catch (error) {
+      console.error("FULL GEMINI ERROR:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        stack: error.stack
+      });
+    }
   } catch (error) {
     console.error("Generate notes API error:", error);
     return res.status(500).json({

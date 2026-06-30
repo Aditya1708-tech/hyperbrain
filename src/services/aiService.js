@@ -4,11 +4,10 @@ import { notificationService } from './firebase/firestoreService';
 const isBrowser = typeof window !== 'undefined';
 
 const getApiKey = () => {
-  try {
+  if (typeof window !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env) {
     return import.meta.env.VITE_GEMINI_API_KEY;
-  } catch (e) {
-    return process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   }
+  return process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 };
 
 // Verify all environment variables exist before generation
@@ -73,9 +72,13 @@ const aiService = {
         if (!response.ok) {
           throw new Error(data.message || "Failed to generate notes");
         }
+        let resultData = data.data;
+        if (typeof resultData === 'string') {
+          resultData = JSON.parse(resultData.replace(/```json/g, "").replace(/```/g, "").trim());
+        }
         const uid = auth.currentUser?.uid || 'anonymous';
         await notificationService.notifyStudent(uid, 'Notes generated', `Your notes for "${topicName}" in "${subjectName}" are ready.`, 'notes', '📝');
-        return data.data;
+        return resultData;
       } catch (error) {
         console.error("AI generation failed:", error);
         return {
