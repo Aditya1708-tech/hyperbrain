@@ -4,7 +4,8 @@ import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './services/firebase/firebase';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { WifiOff, Loader2 } from 'lucide-react';
-import ErrorBoundary from './components/common/ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
+import HealthCheck from './pages/HealthCheck';
 import { analyticsService } from './services/firebase/firestoreService';
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminRoute from './routes/AdminRoute';
@@ -136,6 +137,7 @@ export default function App() {
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/health" element={<HealthCheck />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               

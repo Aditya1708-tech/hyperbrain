@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, Loader2, X } from 'lucide-react';
-import aiService from "@/services/aiService";
+import aiService, { askTutor } from "@/services/aiService";
 import { analyticsService } from '../../services/firebase/firestoreService';
 import { userService } from '../../services/firebase/userService';
 import { auth } from '../../services/firebase/firebase';
@@ -65,10 +65,10 @@ export default function TutorDrawer({ isOpen, onClose, currentCourse, currentTop
     try {
       const courseName = currentCourse ? (currentCourse.subject_name || currentCourse.name) : "General Context";
       const topicName = currentTopic ? (currentTopic.title || currentTopic.name) : "General Concept";
-      const contextPrompt = `Context: Course=${courseName} Topic=${topicName}. Respond strictly based on this curriculum concept. Question: ${text}`;
+      const context = `Course: ${courseName}, Topic: ${topicName}`;
       
       const startTime = Date.now();
-      const response = await aiService.generateTutorResponse(contextPrompt);
+      const response = await askTutor(text, context);
       const latencyMs = Date.now() - startTime;
 
       analyticsService.logAiSession(courseName, topicName, 'chat_tutor', latencyMs, 950, true);

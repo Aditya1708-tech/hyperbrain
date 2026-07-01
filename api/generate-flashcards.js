@@ -73,7 +73,11 @@ async function getFirestoreDoc(collection, docId) {
   try {
     const res = await fetch(`${FIRESTORE_BASE_URL}/${collection}/${docId}`);
     if (!res.ok) return null;
-    const data = await res.json();
+    const text = await res.text();
+    if (!text) {
+      throw new Error("Empty response from server");
+    }
+    const data = JSON.parse(text);
     if (data && data.fields) {
       return firestoreToJs(data.fields);
     }

@@ -149,7 +149,12 @@ export default function FlashcardsScreen() {
       setIsLimitReached(false);
       
       // Perform Gemini Flashcards query
-      const generated = await aiService.generateFlashcards(selectedCourse.subject_name, selectedTopic.title);
+      const rawText = await aiService.generateFlashcards(selectedTopic.title, selectedCourse.subject_name);
+      let generated = rawText;
+      if (typeof rawText === 'string') {
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        generated = JSON.parse(cleanJson);
+      }
       
       // Save result in user doc path
       await setDoc(docRef, {

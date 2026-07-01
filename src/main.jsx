@@ -5,13 +5,15 @@ import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 
+import { AI_CONFIG } from './config/aiConfig';
+
 console.log("ENV CHECK:", {
-   gemini: !!import.meta.env.VITE_GEMINI_API_KEY,
+   groq: !!AI_CONFIG.apiKey,
    firebase: !!import.meta.env.VITE_FIREBASE_API_KEY
 });
 
-if (!import.meta.env.VITE_GEMINI_API_KEY) {
-  console.error("Missing Gemini API key");
+if (!AI_CONFIG.apiKey) {
+  console.error("Missing GROQ API key");
 }
 
 createRoot(document.getElementById('root')).render(

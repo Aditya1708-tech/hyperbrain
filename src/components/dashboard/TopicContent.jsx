@@ -44,7 +44,12 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
       try {
         console.log(`[Background AI] Pre-generating adjacent module: ${topic.title}`);
         const startTime = Date.now();
-        const generated = await aiService.generateNotes(subjectName, topic.title);
+        const rawText = await aiService.generateNotes(topic.title, subjectName);
+        let generated = rawText;
+        if (typeof rawText === 'string') {
+          const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+          generated = JSON.parse(cleanJson);
+        }
         const latencyMs = Date.now() - startTime;
 
         analyticsService.logAiSession(subjectName, topic.title, 'background_pregen', latencyMs, 1200, true);
@@ -148,7 +153,12 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
       
       setLoadingPhase('notes');
       const startTime = Date.now();
-      const generated = await aiService.generateNotes(subjectName, topicName);
+      const rawText = await aiService.generateNotes(topicName, subjectName);
+      let generated = rawText;
+      if (typeof rawText === 'string') {
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        generated = JSON.parse(cleanJson);
+      }
       const latencyMs = Date.now() - startTime;
 
       analyticsService.logAiSession(subjectName, topicName, 'notes', latencyMs, 1400, true);
@@ -198,7 +208,7 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
     } catch (err) {
       console.error(err);
       analyticsService.logAiSession(subjectName, topicName, 'notes', 0, 0, false, err.message);
-      setErrorMsg(err.message || "Failed to load study content.");
+      setErrorMsg("AI is temporarily busy. Please try again in a moment.");
       setLoading(false);
       setLoadingPhase('');
     }

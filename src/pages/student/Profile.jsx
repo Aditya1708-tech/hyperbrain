@@ -84,6 +84,8 @@ export default function ProfilePage() {
                 setDisplayName(data.name);
               }
             }
+          }, (err) => {
+            console.error("Firestore user profile sync failed:", err);
           });
         }
       }

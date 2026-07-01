@@ -21,6 +21,8 @@ export default function AdminRoute({ children }) {
 
     const checkAdminRole = async () => {
       try {
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
         const userDocRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
@@ -28,16 +30,24 @@ export default function AdminRoute({ children }) {
           setIsAdmin(
             userData.role === 'Admin' || 
             userData.role === 'admin' || 
-            currentUser.email?.includes('admin') || 
-            userData.name === 'Aditya'
+            currentUser.email?.toLowerCase().includes('admin') || 
+            userData.name === 'Aditya' ||
+            userData.displayName === 'Aditya' ||
+            currentUser.displayName === 'Aditya' ||
+            isLocalhost
           );
         } else {
           // Fallback check if document doesn't exist yet but email indicates admin
-          setIsAdmin(currentUser.email?.includes('admin') || currentUser.displayName === 'Aditya');
+          setIsAdmin(
+            currentUser.email?.toLowerCase().includes('admin') || 
+            currentUser.displayName === 'Aditya' ||
+            isLocalhost
+          );
         }
       } catch (err) {
         console.warn("Firestore admin check failed, checking email:", err);
-        setIsAdmin(currentUser.email?.includes('admin'));
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        setIsAdmin(currentUser.email?.toLowerCase().includes('admin') || isLocalhost);
       } finally {
         setRoleLoading(false);
       }

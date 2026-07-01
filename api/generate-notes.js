@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AI_CONFIG } from "../src/config/aiConfig.js";
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -72,7 +72,11 @@ async function getFirestoreDoc(collection, docId) {
   try {
     const res = await fetch(`${FIRESTORE_BASE_URL}/${collection}/${docId}`);
     if (!res.ok) return null;
-    const data = await res.json();
+    const text = await res.text();
+    if (!text) {
+      throw new Error("Empty response from server");
+    }
+    const data = JSON.parse(text);
     if (data && data.fields) {
       return firestoreToJs(data.fields);
     }
@@ -97,22 +101,12 @@ async function setFirestoreDoc(collection, docId, jsObj) {
   return false;
 }
 
-const API_KEY = process.env.VITE_GEMINI_API_KEY || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined);
-
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-const modelName = "gemini-2.5-flash";
-console.log("Gemini model:", modelName);
-console.log("Gemini key exists:", !!API_KEY);
-
-const model = genAI.getGenerativeModel({
-  model: modelName
-});
+// Centralized config used via aiService
 
 export default async function handler(req, res) {
   console.log("REQUEST BODY:", req.body);
   console.log("ENV:", {
-    hasGemini: !!process.env.VITE_GEMINI_API_KEY
+    hasGroq: !!AI_CONFIG.apiKey
   });
 
   const startTime = Date.now();
@@ -172,14 +166,30 @@ export default async function handler(req, res) {
     Return strictly valid JSON: 
     {"summary": "...", "flashcards": [{"front": "Q", "back": "A"}], "quiz": [{"question": "Q?", "options": ["A","B","C","D"], "answer": "A", "explanation": "Why?"}], "exam_questions": ["Q1"]}`;
 
+    console.log("Starting generateNotes");
+    console.log("Topic:", finalTopic);
+    console.log("Course:", finalCourse);
+    console.log("Prompt:", prompt);
+
     // 4. Wrap Gemini call:
     try {
-      console.log("Sending request to Gemini...");
       const result = await model.generateContent(prompt);
-      console.log("Gemini success");
 
-      const rawText = result.response.text();
-      const parsedResult = JSON.parse(rawText.replace(/```json/g, "").replace(/```/g, "").trim());
+      console.log("Gemini raw response:", result);
+
+      const response = result.response;
+      if (!response) {
+        throw new Error(
+          "No Gemini response"
+        );
+      }
+
+      const text = response.text();
+
+      console.log("Generated text:", text);
+
+      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsedResult = JSON.parse(cleanJson);
 
       // Save to Cache
       await setFirestoreDoc('ai_cache', cacheKey, { result: parsedResult });
@@ -195,10 +205,10 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        data: rawText
+        data: text
       });
     } catch (error) {
-      console.error("FULL GEMINI ERROR:", error);
+      console.error("Gemini full error:", error);
       return res.status(500).json({
         success: false,
         message: error.message,

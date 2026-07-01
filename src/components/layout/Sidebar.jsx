@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, deleteDoc, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase/firebase';
+import aiService from '../../services/aiService';
 
 import { analyticsService } from '../../services/firebase/firestoreService';
 import { Book, Plus, Trash2, BarChart2, User, LogOut, Loader2, Sparkles, FileText, BrainCircuit, Check, LayoutDashboard, Settings, Star, Sparkle, MessageSquare, Award, TrendingUp, BookOpen } from 'lucide-react';
@@ -70,6 +71,8 @@ export default function Sidebar({
               setIsPro(firestorePro);
               localStorage.setItem(`isPro_${currentUser.uid}`, firestorePro ? 'true' : 'false');
             }
+          }, (err) => {
+            console.error("Firestore user profile sync in Sidebar failed:", err);
           });
         }
 
@@ -216,7 +219,7 @@ export default function Sidebar({
 
           setUploadStep('mapping');
           
-          const brainData = await brainService.generateBrainFromPdf(base64Data, file.name);
+          const brainData = await aiService.generateBrainFromPdf(base64Data, file.name);
           if (cancelUploadRef.current) return;
 
           const courseData = {
@@ -237,29 +240,10 @@ export default function Sidebar({
           await new Promise((resolve) => setTimeout(resolve, 1500));
           
         } catch (aiErr) {
-          console.warn("AI generation failed or offline. Simulating PDF generation...", aiErr);
+          console.error("AI generation failed:", aiErr);
           if (cancelUploadRef.current) return;
-
-          const mockName = file.name.replace('.pdf', '');
-          const courseData = {
-            subject_name: mockName,
-            topics: [
-              { title: `${mockName} Basics`, difficulty: "Easy", summary: "Fundamental concepts extracted from syllabus PDF." },
-              { title: `${mockName} Architecture`, difficulty: "Medium", summary: "Detailed blueprints and patterns." },
-              { title: `${mockName} Deployment`, difficulty: "Hard", summary: "Optimization, compilation and staging." }
-            ],
-            createdAt: serverTimestamp()
-          };
-
-          analyticsService.logCourseCreated(courseData.subject_name);
-
-          if (user) {
-            await addDoc(collection(db, 'users', user.uid, 'subjects'), courseData);
-          }
-          if (cancelUploadRef.current) return;
-
-          setUploadStep('completed');
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          setToastMessage(aiErr.message || "Failed to process syllabus PDF.");
+          setTimeout(() => setToastMessage(''), 3000);
         } finally {
           if (!cancelUploadRef.current) {
             setIsGenerating(false);
