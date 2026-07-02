@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase/firebase';
 import aiService from "@/services/aiService";
@@ -76,11 +76,17 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
     }
   };
 
+  const generatingRef = useRef(false);
+
   const loadContent = useCallback(async (forceRegenerate = false) => {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+
     const user = auth.currentUser;
     if (!user) {
       setErrorMsg("User not authenticated");
       setLoading(false);
+      generatingRef.current = false;
       return;
     }
 
@@ -126,6 +132,7 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
         setIsLimitReached(false);
         setLoading(false);
         setLoadingPhase('');
+        generatingRef.current = false;
 
         // Trigger background pre-generation
         if (topicsList.length > 0) {
@@ -142,6 +149,7 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
       if (!check.allowed) {
         setIsLimitReached(true);
         setLoading(false);
+        generatingRef.current = false;
         return;
       }
 
@@ -197,6 +205,7 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
       
       setLoading(false);
       setLoadingPhase('');
+      generatingRef.current = false;
 
       // Trigger background pre-generation
       if (topicsList.length > 0) {
@@ -208,9 +217,10 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
     } catch (err) {
       console.error(err);
       analyticsService.logAiSession(subjectName, topicName, 'notes', 0, 0, false, err.message);
-      setErrorMsg("AI is temporarily busy. Please try again in a moment.");
+      setErrorMsg(err.message || "AI is temporarily busy. Please try again in a moment.");
       setLoading(false);
       setLoadingPhase('');
+      generatingRef.current = false;
     }
   }, [subjectId, subjectName, topicName]);
 
@@ -335,7 +345,8 @@ export default function TopicContent({ subjectId, subjectName, topicName }) {
         {/* Regenerate Control */}
         <button
           onClick={() => loadContent(true)}
-          className="flex items-center space-x-1.5 px-3 py-1.5 border border-border-theme hover:bg-hover-theme text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl text-xs font-bold transition-all shadow-xs"
+          disabled={loading}
+          className="flex items-center space-x-1.5 px-3 py-1.5 border border-border-theme hover:bg-hover-theme text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           title="Regenerate notes with AI"
         >
           <RefreshCw className="w-3.5 h-3.5" />

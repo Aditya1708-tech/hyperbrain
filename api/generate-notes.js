@@ -1,4 +1,5 @@
 import { AI_CONFIG } from "../src/config/aiConfig.js";
+import Groq from "groq-sdk";
 const FIREBASE_PROJECT_ID = "campus-hyper-brain";
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
@@ -151,11 +152,15 @@ export default async function handler(req, res) {
       return res.status(429).json({ success: false, message: "You have reached today's beta limit." });
     }
 
-    // 3. Verify Gemini initialization:
-    const API_KEY = process.env.VITE_GEMINI_API_KEY;
+    // 3. Verify Groq initialization:
+    const API_KEY = process.env.VITE_GROQ_API_KEY || AI_CONFIG.apiKey;
     if (!API_KEY) {
-      throw new Error("Gemini API key missing in server environment");
+      throw new Error("Groq API key missing in server environment");
     }
+
+    const groq = new Groq({
+      apiKey: API_KEY
+    });
 
     const prompt = `Create comprehensive study content for the topic "${finalTopic}" in the course "${finalCourse}". 
     REQUIRED STRUCTURE:
@@ -171,22 +176,27 @@ export default async function handler(req, res) {
     console.log("Course:", finalCourse);
     console.log("Prompt:", prompt);
 
-    // 4. Wrap Gemini call:
+    // 4. Wrap Groq call:
     try {
-      const result = await model.generateContent(prompt);
+      const completion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.7,
+        max_tokens: 2000
+      });
 
-      console.log("Gemini raw response:", result);
-
-      const response = result.response;
-      if (!response) {
-        throw new Error(
-          "No Gemini response"
-        );
+      const text = completion.choices[0]?.message?.content;
+      if (!text) {
+        throw new Error("Empty response from Groq");
       }
 
-      const text = response.text();
-
       console.log("Generated text:", text);
+      console.log("AI generation success");
 
       const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
       const parsedResult = JSON.parse(cleanJson);
@@ -208,7 +218,7 @@ export default async function handler(req, res) {
         data: text
       });
     } catch (error) {
-      console.error("Gemini full error:", error);
+      console.error("Groq full error:", error);
       return res.status(500).json({
         success: false,
         message: error.message,

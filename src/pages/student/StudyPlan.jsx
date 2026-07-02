@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase/firebase';
@@ -28,6 +28,7 @@ export default function StudyPlanScreen() {
   const [roadmap, setRoadmap] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const generatingRef = useRef(false);
 
   // Usage limit states
   const [isLimitReached, setIsLimitReached] = useState(false);
@@ -138,9 +139,16 @@ export default function StudyPlanScreen() {
   }, [selectedCourse]);
 
   const handleGenerateRoadmap = async () => {
+    if (generatingRef.current) {
+      console.log("Skipping duplicate request");
+      return;
+    }
+    generatingRef.current = true;
+
     if (!selectedCourse) {
       setToastMessage("Please select a course first.");
       setTimeout(() => setToastMessage(''), 3000);
+      generatingRef.current = false;
       return;
     }
 
@@ -148,6 +156,7 @@ export default function StudyPlanScreen() {
     const uid = auth.currentUser?.uid;
     if (!uid) {
       setLoading(false);
+      generatingRef.current = false;
       return;
     }
 
@@ -156,6 +165,7 @@ export default function StudyPlanScreen() {
       setToastMessage("No topics available in this course to map.");
       setTimeout(() => setToastMessage(''), 3000);
       setLoading(false);
+      generatingRef.current = false;
       return;
     }
 
@@ -164,6 +174,7 @@ export default function StudyPlanScreen() {
     if (!check.allowed) {
       setIsLimitReached(true);
       setLoading(false);
+      generatingRef.current = false;
       return;
     }
 
@@ -215,6 +226,7 @@ export default function StudyPlanScreen() {
       setRoadmap(fallback);
     } finally {
       setLoading(false);
+      generatingRef.current = false;
     }
   };
 

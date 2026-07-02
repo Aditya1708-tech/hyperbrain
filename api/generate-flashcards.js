@@ -145,8 +145,12 @@ export default async function handler(req, res) {
 
     // 3. Call AI Service
     const startTime = Date.now();
-    const result = await aiService.generateFlashcards(finalCourse, finalTopic);
-    const parsedResult = result.parsed;
+    const result = await aiService.generateFlashcards(finalTopic, finalCourse);
+    let parsedResult = result;
+    if (typeof result === 'string') {
+      const cleanJson = result.replace(/```json/g, "").replace(/```/g, "").trim();
+      parsedResult = JSON.parse(cleanJson);
+    }
 
     if (!parsedResult || parsedResult.length === 0) {
       throw new Error("AI generation failed. Check console logs.");

@@ -101,7 +101,7 @@ export default function AdminPanel() {
 
   // Telemetry notifications
   const [notifications, setNotifications] = useState([
-    { id: 1, type: "error", title: "API Timeout Warning", desc: "Gemini API took 4.5s to respond on TopicNotes", time: "2m ago", read: false, emoji: "🔴" },
+    { id: 1, type: "error", title: "API Timeout Warning", desc: "Groq API took 4.5s to respond on TopicNotes", time: "2m ago", read: false, emoji: "🔴" },
     { id: 2, type: "registration", title: "New Subscriber", desc: "Ananya Iyer registered Basic student account", time: "10m ago", read: false, emoji: "🟢" },
     { id: 3, type: "upgrade", title: "Premium Subscription", desc: "Vikram Malhotra upgraded to Annual Pro ($79.99)", time: "1h ago", read: false, emoji: "🔵" }
   ]);
@@ -121,7 +121,7 @@ export default function AdminPanel() {
   const [appTitle, setAppTitle] = useState("HyperBrain Academic Hub");
   const [supportEmail, setSupportEmail] = useState("support@hyperbrain.ai");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [aiModelSelected, setAiModelSelected] = useState("gemini-2.5-pro");
+  const [aiModelSelected, setAiModelSelected] = useState("llama-3.3-70b-versatile");
   const [aiTemperature, setAiTemperature] = useState(0.7);
 
   // Trigger tab change transition loaders
@@ -1542,8 +1542,8 @@ export default function AdminPanel() {
                     onChange={(e) => setAiModelSelected(e.target.value)}
                     className="w-full px-3 py-2 bg-bg-secondary border border-border-theme rounded-xl text-primary focus-ring"
                   >
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (Recommended)</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latency Optimised)</option>
+                    <option value="llama-3.3-70b-versatile">Llama 3.1 8B Instant (Recommended)</option>
+                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Latency Optimised)</option>
                   </select>
                 </div>
 
@@ -1936,7 +1936,7 @@ export default function AdminPanel() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="p-4 bg-card border-border-theme flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gemini API status</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Groq API status</span>
                     <span className="text-xs font-extrabold text-primary block">Operational</span>
                   </div>
                   <ShieldCheck className="w-5 h-5 text-green-600" />
@@ -2014,7 +2014,7 @@ export default function AdminPanel() {
                 <div>[INFO] 2026-06-29T15:00:10Z - Synchronized users with Firestore listener snap</div>
                 <div>[DEBUG] 2026-06-29T15:01:22Z - Triggered notes_generated telemetry for computer architecture</div>
                 <div>[INFO] 2026-06-29T15:02:44Z - Completed subscription plan upgrade trigger for student Vikram</div>
-                <div className="text-yellow-500 animate-pulse">[WARN] 2026-06-29T15:03:00Z - API warning: Gemini API notes pregen latency exceeded 3000ms</div>
+                <div className="text-yellow-500 animate-pulse">[WARN] 2026-06-29T15:03:00Z - API warning: Groq API notes pregen latency exceeded 3000ms</div>
               </div>
             </Card>
           ) : activeCategory === "SYSTEM" && activeSubView === "Cache" ? (
@@ -2209,13 +2209,13 @@ export default function AdminPanel() {
             
             /* SET2: AI CONFIGS */
             <Card className="bg-card border-border-theme p-6 space-y-4">
-              <h3 className="text-xs font-black text-primary uppercase tracking-widest border-b border-border-theme pb-2">Default Gemini API Override overrides</h3>
+              <h3 className="text-xs font-black text-primary uppercase tracking-widest border-b border-border-theme pb-2">Default Groq API Override overrides</h3>
               <div className="space-y-4 text-xs font-bold">
                 <div className="space-y-2">
-                  <label className="block text-muted">Gemini model override path</label>
+                  <label className="block text-muted">Groq model override path</label>
                   <input
                     type="text"
-                    defaultValue="models/gemini-2.5-pro"
+                    defaultValue="models/llama-3.3-70b-versatile"
                     disabled
                     className="w-full px-3 py-2 bg-bg-secondary border border-border-theme rounded-xl text-slate-400 select-none"
                   />

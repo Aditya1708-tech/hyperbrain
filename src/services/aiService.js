@@ -1,73 +1,88 @@
 import { auth } from './firebase/firebase';
 import { notificationService } from './firebase/firestoreService';
 import { AI_CONFIG } from '../config/aiConfig.js';
+import Groq from 'groq-sdk';
+
+const apiKey = (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GROQ_API_KEY : undefined) || (typeof process !== 'undefined' && process.env ? process.env.VITE_GROQ_API_KEY : '') || AI_CONFIG.apiKey || '';
+
+console.log("Groq initialized successfully");
+console.log("API key loaded:" + !!apiKey);
+
+const groq = new Groq({
+  apiKey: apiKey,
+  dangerouslyAllowBrowser: true
+});
 
 const isBrowser = typeof window !== 'undefined';
 
-if (!AI_CONFIG.apiKey) {
+if (!apiKey) {
   console.error("Missing GROQ API key");
 }
 
-/**
- * Centralized reusable function calling the Groq completions API.
- * Supports timeout (15s), try/catch, retries (3 attempts), proper error logging,
- * and exponential backoff on HTTP 503 errors.
- */
+async function retryRequest(fn, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (
+        (err.message && (err.message.includes("Rate limit") || err.message.includes("429") || err.message.includes("503"))) ||
+        err.status === 429 ||
+        err.status === 503
+      ) {
+        console.warn("AI is busy. Retrying automatically... Attempt " + (i + 1));
+        await new Promise(r => setTimeout(r, Math.pow(2, i) * 2000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Maximum retries exceeded");
+}
+
 export async function generateAI(prompt) {
-  if (!AI_CONFIG.apiKey) {
+  if (!apiKey) {
     console.error("Missing GROQ API key");
-    throw new Error("Missing GROQ API key configuration");
+    throw new Error("API key missing: Please verify VITE_GROQ_API_KEY is configured.");
   }
 
-  const maxRetries = 3;
-  let delay = 1000;
+  try {
+    const completion = await retryRequest(() =>
+      groq.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.7,
+        max_tokens: 2000
+      })
+    );
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[Groq AI Service] Attempt ${attempt} to generate AI content.`);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${AI_CONFIG.apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: AI_CONFIG.model,
-          messages: [{ role: "user", content: prompt }]
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        throw new Error(`Groq API returned HTTP ${res.status}: ${res.statusText}`);
-      }
-
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content;
-      if (!text) {
-        throw new Error("Empty message content returned from Groq");
-      }
-
-      return text;
-    } catch (error) {
-      console.error(`[Groq Error - Attempt ${attempt}]:`, error);
-
-      const is503 = error.message && (error.message.includes("503") || error.message.includes("Service Unavailable"));
-
-      if (attempt < maxRetries) {
-        const backoffDelay = is503 ? delay * Math.pow(2, attempt - 1) : 1000;
-        console.log(`[AI Service] Retrying in ${backoffDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      } else {
-        throw error;
-      }
+    const text = completion.choices[0]?.message?.content;
+    if (!text) {
+      throw new Error("Invalid response: Empty message content returned from Groq.");
     }
+
+    console.log("AI generation success");
+    return text;
+  } catch (error) {
+    console.error("[Groq Error]:", error);
+
+    // Map errors to readable messages
+    let userFriendlyError = error.message || "Unknown error during AI generation.";
+    if (error.status === 401 || error.message?.includes("API key") || error.message?.includes("unauthorized") || error.message?.includes("forbidden")) {
+      userFriendlyError = "API key missing or invalid: Please check VITE_GROQ_API_KEY.";
+    } else if (error.status === 429 || error.message?.includes("rate limit") || error.message?.includes("429") || error.message?.includes("Rate limit") || error.message?.includes("busy")) {
+      userFriendlyError = "AI is busy. Retrying automatically...";
+    } else if (error.status === 503 || error.message?.includes("503") || error.message?.includes("overloaded") || error.message?.includes("exceeded")) {
+      userFriendlyError = "AI service temporarily overloaded...";
+    } else if (error.name === "TypeError" || error.message?.includes("fetch") || error.message?.includes("network") || error.message?.includes("Connection")) {
+      userFriendlyError = "Connection issue detected...";
+    }
+
+    throw new Error(userFriendlyError);
   }
 }
 

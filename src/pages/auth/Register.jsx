@@ -46,15 +46,15 @@ export default function RegistrationScreen() {
 
       // Trigger Vercel welcome email API
       try {
-        await fetch('/api/sendWelcomeEmail', {
+        await fetch('/api/send-email', {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            userId: user.uid,
-            userEmail: email,
-            userName: name
+            to: email,
+            type: 'welcome',
+            name: name
           })
         });
       } catch (emailErr) {

@@ -50,6 +50,7 @@ export default function ExamScreen() {
   // Safeguard ref to prevent proctoring events during submit transition
   const submittingRef = useRef(false);
   const cancelRef = useRef(false);
+  const generatingRef = useRef(false);
 
   const blueprints = {
     20: {
@@ -97,6 +98,16 @@ export default function ExamScreen() {
   };
 
   const handleGenerateExam = async (customSyllabus = null, customMarks = null, customDifficulty = null) => {
+    if (generatingRef.current) {
+      console.log("Skipping duplicate request");
+      return;
+    }
+    generatingRef.current = true;
+
+    if (isLoading) {
+      generatingRef.current = false;
+      return;
+    }
     const marks = customMarks || parseInt(marksInput, 10) || 70;
     
     const uid = auth.currentUser?.uid;
@@ -104,6 +115,7 @@ export default function ExamScreen() {
       const check = await userService.checkLimit(uid, 'mock_exams');
       if (!check.allowed) {
         setIsLimitReached(true);
+        generatingRef.current = false;
         return;
       }
     }
@@ -209,6 +221,7 @@ export default function ExamScreen() {
       setIsLoading(false);
       setLoadingMessage("");
       setProgressPercent(0);
+      generatingRef.current = false;
     }
   };
 

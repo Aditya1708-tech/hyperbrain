@@ -26,6 +26,7 @@ export default function TutorScreen() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
+  const generatingRef = useRef(false);
 
   // Auto scroll
   useEffect(() => {
@@ -138,7 +139,20 @@ export default function TutorScreen() {
   };
 
   const triggerSend = async (text, labelText = null) => {
-    if (!text.trim()) return;
+    if (generatingRef.current) {
+      console.log("Skipping duplicate request");
+      return;
+    }
+    generatingRef.current = true;
+
+    if (isTyping) {
+      generatingRef.current = false;
+      return;
+    }
+    if (!text.trim()) {
+      generatingRef.current = false;
+      return;
+    }
     
     // Display user message in chat
     const displayUserText = labelText || text;
@@ -152,6 +166,7 @@ export default function TutorScreen() {
         const resetTime = userService.getTimeUntilMidnight().formatted;
         setMessages(prev => [...prev, { role: 'ai', text: `You have reached today's beta limit. Reset in: ${resetTime}` }]);
         setIsTyping(false);
+        generatingRef.current = false;
         return;
       }
     }
@@ -172,6 +187,7 @@ export default function TutorScreen() {
       setMessages(prev => [...prev, { role: 'ai', text: "Error: Could not connect to AI Tutor." }]);
     } finally {
       setIsTyping(false);
+      generatingRef.current = false;
     }
   };
 
@@ -383,25 +399,29 @@ export default function TutorScreen() {
               <div className="px-6 py-2.5 bg-bg-secondary border-t border-slate-200/50 dark:border-slate-800/50 flex flex-wrap gap-2 flex-shrink-0">
                 <button
                   onClick={() => handleSuggestedAction('simpler')}
-                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs"
+                  disabled={isTyping}
+                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Explain simpler
                 </button>
                 <button
                   onClick={() => handleSuggestedAction('examples')}
-                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs"
+                  disabled={isTyping}
+                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Give examples
                 </button>
                 <button
                   onClick={() => handleSuggestedAction('quiz')}
-                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs"
+                  disabled={isTyping}
+                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Generate quiz
                 </button>
                 <button
                   onClick={() => handleSuggestedAction('summarize')}
-                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs"
+                  disabled={isTyping}
+                  className="px-3.5 py-1.5 bg-card hover:bg-hover-theme border border-border-theme text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Summarize
                 </button>
@@ -413,10 +433,11 @@ export default function TutorScreen() {
               <input
                 type="text"
                 required
+                disabled={isTyping}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Ask AI Tutor context question..."
-                className="flex-1 bg-bg-secondary text-primary text-xs px-4 py-3 rounded-xl border border-border-theme focus-ring"
+                className="flex-1 bg-bg-secondary text-primary text-xs px-4 py-3 rounded-xl border border-border-theme focus-ring disabled:opacity-50"
               />
               <button
                 type="submit"

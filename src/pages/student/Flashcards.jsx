@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase/firebase';
@@ -29,6 +29,7 @@ export default function FlashcardsScreen() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const generatingRef = useRef(false);
 
   // Usage limits states
   const [isLimitReached, setIsLimitReached] = useState(false);
@@ -108,8 +109,15 @@ export default function FlashcardsScreen() {
 
   // Load or generate flashcards for selected course + topic
   const loadFlashcards = async (forceRegen = false) => {
+    if (generatingRef.current) {
+      console.log("Skipping duplicate request");
+      return;
+    }
+    generatingRef.current = true;
+
     if (!selectedCourse || !selectedTopic) {
       setCards([]);
+      generatingRef.current = false;
       return;
     }
     
@@ -120,6 +128,7 @@ export default function FlashcardsScreen() {
     const uid = auth.currentUser?.uid;
     if (!uid) {
       setLoading(false);
+      generatingRef.current = false;
       return;
     }
 
@@ -134,6 +143,7 @@ export default function FlashcardsScreen() {
           setCards(snap.data().cards || []);
           setIsLimitReached(false);
           setLoading(false);
+          generatingRef.current = false;
           return;
         }
       }
@@ -143,6 +153,7 @@ export default function FlashcardsScreen() {
       if (!check.allowed) {
         setIsLimitReached(true);
         setLoading(false);
+        generatingRef.current = false;
         return;
       }
 
@@ -181,6 +192,7 @@ export default function FlashcardsScreen() {
       setCards(generated);
     } finally {
       setLoading(false);
+      generatingRef.current = false;
     }
   };
 

@@ -7,9 +7,23 @@ export default function ChatWidget() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const generatingRef = useRef(false);
 
   const triggerSend = async (text) => {
-    if (!text.trim()) return;
+    if (generatingRef.current) {
+      console.log("Skipping duplicate request");
+      return;
+    }
+    generatingRef.current = true;
+
+    if (isTyping) {
+      generatingRef.current = false;
+      return;
+    }
+    if (!text.trim()) {
+      generatingRef.current = false;
+      return;
+    }
     setMessages((prev) => [...prev, { role: 'user', text }]);
     setIsTyping(true);
 
@@ -23,6 +37,7 @@ export default function ChatWidget() {
       setMessages((prev) => [...prev, { role: 'ai', text: "Error: Could not connect to Brain." }]);
     } finally {
       setIsTyping(false);
+      generatingRef.current = false;
     }
   };
 
@@ -127,14 +142,15 @@ export default function ChatWidget() {
           <input
             type="text"
             required
+            disabled={isTyping}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder="Ask AI Tutor..."
-            className="flex-1 bg-bg-secondary text-primary text-xs px-3.5 py-2.5 rounded-2xl border border-border-theme focus-ring placeholder-h-secondary transition-colors duration-300"
+            className="flex-1 bg-bg-secondary text-primary text-xs px-3.5 py-2.5 rounded-2xl border border-border-theme focus-ring placeholder-h-secondary transition-colors duration-300 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || isTyping}
             className="p-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white disabled:bg-bg-secondary disabled:text-muted rounded-2xl transition-all shadow-sm focus-ring"
           >
           <Send className="w-5 h-5" />
