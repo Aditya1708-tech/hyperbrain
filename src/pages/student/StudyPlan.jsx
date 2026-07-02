@@ -460,7 +460,7 @@ export default function StudyPlanScreen() {
                               type="checkbox"
                               checked={task.completed}
                               onChange={() => handleToggleTask(dayIdx, taskIdx)}
-                              className="mt-0.5 rounded border-border-theme text-blue-605 focus:ring-blue-500 cursor-pointer h-4 w-4"
+                              className="mt-0.5 rounded border-border-theme text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
                             />
                             <span className={`group-hover:text-slate-900 dark:group-hover:text-white transition-colors ${
                               task.completed ? 'line-through opacity-55 text-slate-400' : ''

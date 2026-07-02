@@ -386,7 +386,7 @@ export default function MockExamSetupScreen() {
 
                 <button
                   onClick={handleGenerate}
-                  className="w-full py-3 bg-blue-605 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] flex items-center justify-center space-x-2"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] flex items-center justify-center space-x-2"
                 >
                   <Sparkles className="w-4 h-4 text-white" />
                   <span>GENERATE PAPER Blueprint</span>

@@ -149,7 +149,7 @@ export default function PreferencesScreen() {
             <Card className="bg-card border border-border-theme rounded-xl p-6 space-y-4 transition-colors">
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-primary flex items-center">
-                  <Volume2 className="w-4 h-4 mr-2 text-blue-605" />
+                  <Volume2 className="w-4 h-4 mr-2 text-blue-600" />
                   AI Voice Explanations
                 </h3>
                 <p className="text-xs text-slate-455 dark:text-slate-500">Adjust the speech rate of AI explanations inside learning tabs.</p>
@@ -177,7 +177,7 @@ export default function PreferencesScreen() {
             <Card className="bg-card border border-border-theme rounded-xl p-6 flex items-center justify-between transition-colors">
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-primary flex items-center">
-                  <Bell className="w-4 h-4 mr-2 text-blue-605" />
+                  <Bell className="w-4 h-4 mr-2 text-blue-600" />
                   Study Reminders
                 </h3>
                 <p className="text-xs text-slate-450 dark:text-slate-500">Get automatic visual notifications to maintain your daily study milestones.</p>

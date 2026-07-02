@@ -159,7 +159,7 @@ export default function ProgressScreen() {
                         <div className="w-32 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                           <div className="bg-blue-600 h-full rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
                         </div>
-                        <span className="text-sm font-black text-blue-605 dark:text-blue-400">{progressPercent}%</span>
+                        <span className="text-sm font-black text-blue-600 dark:text-blue-400">{progressPercent}%</span>
                       </div>
                     </div>
 
