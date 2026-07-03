@@ -26,7 +26,7 @@ export default function AdminRoute({ children }) {
     role: userRole
   } : null;
 
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || userRole === 'administrator';
   const isLoading = loading || roleLoading;
 
   // Task 2: Log authentication and roles states
@@ -99,7 +99,7 @@ export default function AdminRoute({ children }) {
     return <Navigate to="/login" />;
   }
 
-  if (user.role !== "admin") {
+  if (user.role !== "admin" && user.role !== "administrator") {
     return <Navigate to="/" />;
   }
 
