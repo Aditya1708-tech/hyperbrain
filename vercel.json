@@ -1,7 +1,19 @@
 {
   "rewrites": [
     {
-      "source": "/((?!.*\\.).*)",
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/course/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!robots\\.txt|sitemap\\.xml|assets|.*\\.).*)",
       "destination": "/index.html"
     }
   ]
