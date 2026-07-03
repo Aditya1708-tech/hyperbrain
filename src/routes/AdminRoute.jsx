@@ -49,6 +49,7 @@ export default function AdminRoute({ children }) {
     const checkAdminRole = async () => {
       try {
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isDefaultAdmin = currentUser.email?.toLowerCase() === 'aditya@hyperbrain.ai' || currentUser.email?.toLowerCase().includes('admin') || isLocalhost;
         
         if (isLocalhost) {
           // Dev local environment debug bypass
@@ -62,22 +63,43 @@ export default function AdminRoute({ children }) {
         
         if (userSnap.exists()) {
           const userData = userSnap.data();
+          let normalizedRole = userData.role ? userData.role.toLowerCase() : null;
           
-          // Task 3: Verify role retrieval and log warning if missing
-          if (!userData.role) {
-            console.warn(`Warning: Role field is missing from Firestore user document users/${currentUser.uid}`);
+          if (!normalizedRole && isDefaultAdmin) {
+            normalizedRole = 'admin';
+            try {
+              await updateDoc(userDocRef, { role: 'Administrator' });
+              console.log("Auto-assigned Administrator role in Firestore for:", currentUser.email);
+            } catch (updateErr) {
+              console.warn("Auto-assigning role in Firestore failed:", updateErr);
+            }
           }
-          
-          const normalizedRole = userData.role ? userData.role.toLowerCase() : null;
           setUserRole(normalizedRole);
         } else {
           console.warn(`Warning: Firestore document users/${currentUser.uid} does not exist`);
-          setUserRole(null);
+          if (isDefaultAdmin) {
+            setUserRole('admin');
+            try {
+              await setDoc(userDocRef, {
+                name: currentUser.displayName || currentUser.email.split('@')[0],
+                email: currentUser.email,
+                role: 'Administrator',
+                isOnline: true,
+                lastActive: serverTimestamp()
+              });
+              console.log("Auto-created user document with Administrator role in Firestore for:", currentUser.email);
+            } catch (createErr) {
+              console.warn("Auto-creating user document in Firestore failed:", createErr);
+            }
+          } else {
+            setUserRole(null);
+          }
         }
       } catch (err) {
         console.warn("Firestore admin check failed, checking email fallback:", err);
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        if (currentUser.email?.toLowerCase().includes('admin') || isLocalhost) {
+        const isDefaultAdmin = currentUser.email?.toLowerCase() === 'aditya@hyperbrain.ai' || currentUser.email?.toLowerCase().includes('admin') || isLocalhost;
+        if (isDefaultAdmin) {
           setUserRole('admin');
         } else {
           setUserRole(null);
