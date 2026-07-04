@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function AdminRoute({ children }) {
+
   const {
     currentUser,
     userProfile,
@@ -13,25 +14,16 @@ export default function AdminRoute({ children }) {
     return <div>Loading...</div>;
   }
 
-  // not logged in
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" />;
   }
 
-  console.log("Current User:", currentUser);
-  console.log("User Profile:", userProfile);
-
-  // allow your admin email directly
   if (
-    currentUser.email === "aditya@hyperbrain.ai"
+    userProfile?.role ===
+    "Administrator"
   ) {
     return children;
   }
 
-  // fallback role check
-  if (userProfile?.role === "Administrator") {
-    return children;
-  }
-
-  return <Navigate to="/" replace />;
+  return <Navigate to="/" />;
 }
