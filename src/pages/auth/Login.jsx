@@ -58,6 +58,29 @@ export default function LoginScreen() {
     }
   };
 
+  const sendWelcomeEmail = async ({ email, name }) => {
+    console.log("Sending welcome email...");
+    try {
+      const res = await fetch('/api/welcome', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          to: email,
+          name: name
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Request failed');
+      }
+      console.log("Welcome email sent successfully");
+    } catch (error) {
+      console.error("Welcome email failed:", error);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setErrorMsg('');
@@ -79,14 +102,24 @@ export default function LoginScreen() {
           throw new Error("Could not verify user registration. Please check your connection.");
         }
 
+        console.log("Google login successful:", user.email);
+
         if (!userDoc || !userDoc.exists()) {
+          console.log("New user detected");
           try {
             await setDoc(userDocRef, {
+              uid: user.uid,
               email: user.email,
-              displayName: user.displayName || user.email.split('@')[0],
+              name: user.displayName || user.email.split('@')[0],
               photoURL: user.photoURL,
               role: "student",
               createdAt: serverTimestamp()
+            });
+            
+            // send welcome email only once
+            await sendWelcomeEmail({
+              email: user.email,
+              name: user.displayName || user.email.split('@')[0]
             });
           } catch (writeErr) {
             console.error("Firestore registration write error:", writeErr);
