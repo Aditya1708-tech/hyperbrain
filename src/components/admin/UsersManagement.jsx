@@ -85,7 +85,8 @@ export default function UsersManagement({
               <tr className="bg-bg-secondary border-b border-border-theme text-slate-400 font-black uppercase tracking-wider">
                 <th className="p-4">User</th>
                 <th className="p-4">Plan</th>
-                <th className="p-4 text-center">AI Requests</th>
+                <th className="p-4 text-center">Uploads</th>
+                <th className="p-4 text-center">AI Calls</th>
                 <th className="p-4 text-center">Workspaces</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Actions</th>
@@ -94,7 +95,7 @@ export default function UsersManagement({
             <tbody className="divide-y divide-border-theme font-semibold text-primary">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-muted font-bold">
+                  <td colSpan="7" className="p-8 text-center text-muted font-bold">
                     No users matching search filters.
                   </td>
                 </tr>
@@ -128,8 +129,9 @@ export default function UsersManagement({
                           {u.isPro ? 'Premium Pro' : 'Free Basic'}
                         </span>
                       </td>
-                      <td className="p-4 text-center">{u.aiUsageCount || 15}</td>
-                      <td className="p-4 text-center">{u.workspaceCount || 2}</td>
+                      <td className="p-4 text-center">{u.uploads !== undefined ? u.uploads : 0}</td>
+                      <td className="p-4 text-center">{u.aiCalls !== undefined ? u.aiCalls : 0}</td>
+                      <td className="p-4 text-center">{u.workspacesCreated !== undefined ? u.workspacesCreated : 0}</td>
                       <td className="p-4">
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
                           u.status === 'suspended'
@@ -225,12 +227,16 @@ export default function UsersManagement({
                 <span className="text-blue-500">{selectedUser.isPro ? 'Premium Pro' : 'Free Basic'}</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase text-slate-400 font-bold block mb-1">AI Requests Count</span>
-                <span>{selectedUser.aiUsageCount || 15} calls</span>
+                <span className="text-[10px] uppercase text-slate-400 font-bold block mb-1">Uploads Count</span>
+                <span>{selectedUser.uploads !== undefined ? selectedUser.uploads : 0} uploads</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase text-slate-400 font-bold block mb-1">Created Syllabus</span>
-                <span>{selectedUser.workspaceCount || 2} workspaces</span>
+                <span className="text-[10px] uppercase text-slate-400 font-bold block mb-1">AI Calls Count</span>
+                <span>{selectedUser.aiCalls !== undefined ? selectedUser.aiCalls : 0} calls</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase text-slate-400 font-bold block mb-1">Workspaces Created</span>
+                <span>{selectedUser.workspacesCreated !== undefined ? selectedUser.workspacesCreated : 0} workspaces</span>
               </div>
             </div>
 

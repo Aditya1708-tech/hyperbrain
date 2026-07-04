@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext } from 'react';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase/firebase';
 import { notificationService } from '../../services/firebase/firestoreService';
 import { 
@@ -135,21 +135,75 @@ export default function AdminPanel() {
     let isMounted = true;
     if (db) {
       const usersRef = collection(db, 'users');
-      return onSnapshot(usersRef, (snapshot) => {
+      return onSnapshot(usersRef, async (snapshot) => {
         const fetched = snapshot.docs.map(docSnap => ({
           id: docSnap.id,
+          uid: docSnap.id,
           ...docSnap.data()
         }));
-        if (isMounted) {
-          setStudents(fetched);
-          setLoadingStudents(false);
+
+        try {
+          const fetchedWithStats = await Promise.all(
+            fetched.map(async (user) => {
+              const userId = user.id;
+
+              // 1. get workspaces count using that user's UID
+              const subjectsRef = collection(db, 'users', userId, 'subjects');
+              const subjectsSnap = await getDocs(subjectsRef);
+              const workspaces = subjectsSnap.size;
+
+              // 2. query activity logs to get AI calls and uploads count
+              const logsRef = collection(db, 'activity_log');
+              const logsQuery = query(logsRef, where('userId', '==', userId));
+              const logsSnap = await getDocs(logsQuery);
+              const userLogs = logsSnap.docs.map(d => d.data());
+
+              // Uploads: count of logs where type is 'course_created'
+              const uploads = userLogs.filter(log => log.type === 'course_created').length;
+
+              // AI Calls: count of logs where type is AI-related
+              const aiCalls = userLogs.filter(log =>
+                log.type?.includes('ai') ||
+                log.type?.includes('session') ||
+                log.type?.includes('generated') ||
+                log.type?.includes('notes')
+              ).length;
+
+              // Console debugging
+              console.log("User:", user.uid);
+              console.log("Uploads:", uploads);
+              console.log("AI Calls:", aiCalls);
+              console.log("Workspaces:", workspaces);
+
+              return {
+                ...user,
+                uploads,
+                aiCalls,
+                workspacesCreated: workspaces,
+                // Legacy fields to prevent breaking any other component
+                aiUsageCount: aiCalls,
+                workspaceCount: workspaces
+              };
+            })
+          );
+
+          if (isMounted) {
+            setStudents(fetchedWithStats);
+            setLoadingStudents(false);
+          }
+        } catch (err) {
+          console.error("Failed to fetch statistics for users:", err);
+          if (isMounted) {
+            setStudents(fetched);
+            setLoadingStudents(false);
+          }
         }
       }, (err) => {
         console.warn("Firestore user sync failed, using offline fallback:", err);
         const fallbackList = [
-          { id: "stud_1", name: "Rohan Sharma", email: "rohan@campus.edu", isOnline: true, role: "Student", status: "active", isPro: true, aiUsageCount: 45, workspaceCount: 3 },
-          { id: "stud_2", name: "Ananya Iyer", email: "ananya@campus.edu", isOnline: false, role: "Student", status: "active", isPro: false, aiUsageCount: 12, workspaceCount: 1 },
-          { id: "stud_3", name: "Vikram Malhotra", email: "vikram@campus.edu", isOnline: true, role: "Student", status: "suspended", isPro: true, aiUsageCount: 78, workspaceCount: 4 }
+          { id: "stud_1", uid: "stud_1", name: "Rohan Sharma", email: "rohan@campus.edu", isOnline: true, role: "Student", status: "active", isPro: true, uploads: 3, aiCalls: 45, workspacesCreated: 3, aiUsageCount: 45, workspaceCount: 3 },
+          { id: "stud_2", uid: "stud_2", name: "Ananya Iyer", email: "ananya@campus.edu", isOnline: false, role: "Student", status: "active", isPro: false, uploads: 1, aiCalls: 12, workspacesCreated: 1, aiUsageCount: 12, workspaceCount: 1 },
+          { id: "stud_3", uid: "stud_3", name: "Vikram Malhotra", email: "vikram@campus.edu", isOnline: true, role: "Student", status: "suspended", isPro: true, uploads: 4, aiCalls: 78, workspacesCreated: 4, aiUsageCount: 78, workspaceCount: 4 }
         ];
         if (isMounted) {
           setStudents(fallbackList);
