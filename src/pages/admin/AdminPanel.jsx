@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext } from 'react';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../../services/firebase/firebase';
 import { notificationService } from '../../services/firebase/firestoreService';
 import { 
@@ -24,6 +24,9 @@ import SystemHealth from '../../components/admin/SystemHealth';
 import AuditLogs from '../../components/admin/AuditLogs';
 import SubscriptionManagement from '../../components/admin/SubscriptionManagement';
 import EmailMonitoring from '../../components/admin/EmailMonitoring';
+import AdminsManagement from '../../components/admin/AdminsManagement';
+import RolesManagement from '../../components/admin/RolesManagement';
+import UserSessions from '../../components/admin/UserSessions';
 
 // Categories and subViews structure for navigation
 const CATEGORIES = {
@@ -82,10 +85,15 @@ export default function AdminPanel() {
   const [apiError, setApiError] = useState(null);
 
   // Telemetry real-time database state
+  const [rawUsers, setRawUsers] = useState([]);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
+  const [allWorkspaces, setAllWorkspaces] = useState([]);
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
   const [activityLogs, setActivityLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [roles, setRoles] = useState([]);
+  const [sessions, setSessions] = useState([]);
 
   // Global search input
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -129,89 +137,81 @@ export default function AdminPanel() {
     }
   };
 
-  // Sync users database
+  // Sync raw users database
   useEffect(() => {
     if (!isAuthenticated) return;
     let isMounted = true;
     if (db) {
       const usersRef = collection(db, 'users');
-      return onSnapshot(usersRef, async (snapshot) => {
+      return onSnapshot(usersRef, (snapshot) => {
+        console.log("Realtime update fired");
         const fetched = snapshot.docs.map(docSnap => ({
           id: docSnap.id,
           uid: docSnap.id,
           ...docSnap.data()
         }));
-
-        try {
-          const fetchedWithStats = await Promise.all(
-            fetched.map(async (user) => {
-              const userId = user.id;
-
-              // 1. get workspaces count using that user's UID
-              const subjectsRef = collection(db, 'users', userId, 'subjects');
-              const subjectsSnap = await getDocs(subjectsRef);
-              const workspaces = subjectsSnap.size;
-
-              // 2. query activity logs to get AI calls and uploads count
-              const logsRef = collection(db, 'activity_log');
-              const logsQuery = query(logsRef, where('userId', '==', userId));
-              const logsSnap = await getDocs(logsQuery);
-              const userLogs = logsSnap.docs.map(d => d.data());
-
-              // Uploads: count of logs where type is 'course_created'
-              const uploads = userLogs.filter(log => log.type === 'course_created').length;
-
-              // AI Calls: count of logs where type is AI-related
-              const aiCalls = userLogs.filter(log =>
-                log.type?.includes('ai') ||
-                log.type?.includes('session') ||
-                log.type?.includes('generated') ||
-                log.type?.includes('notes')
-              ).length;
-
-              // Console debugging
-              console.log("User:", user.uid);
-              console.log("Uploads:", uploads);
-              console.log("AI Calls:", aiCalls);
-              console.log("Workspaces:", workspaces);
-
-              return {
-                ...user,
-                uploads,
-                aiCalls,
-                workspacesCreated: workspaces,
-                // Legacy fields to prevent breaking any other component
-                aiUsageCount: aiCalls,
-                workspaceCount: workspaces
-              };
-            })
-          );
-
-          if (isMounted) {
-            setStudents(fetchedWithStats);
-            setLoadingStudents(false);
-          }
-        } catch (err) {
-          console.error("Failed to fetch statistics for users:", err);
-          if (isMounted) {
-            setStudents(fetched);
-            setLoadingStudents(false);
-          }
+        if (isMounted) {
+          setRawUsers(fetched);
+          setLoadingStudents(false);
         }
       }, (err) => {
         console.warn("Firestore user sync failed, using offline fallback:", err);
         const fallbackList = [
-          { id: "stud_1", uid: "stud_1", name: "Rohan Sharma", email: "rohan@campus.edu", isOnline: true, role: "Student", status: "active", isPro: true, uploads: 3, aiCalls: 45, workspacesCreated: 3, aiUsageCount: 45, workspaceCount: 3 },
-          { id: "stud_2", uid: "stud_2", name: "Ananya Iyer", email: "ananya@campus.edu", isOnline: false, role: "Student", status: "active", isPro: false, uploads: 1, aiCalls: 12, workspacesCreated: 1, aiUsageCount: 12, workspaceCount: 1 },
-          { id: "stud_3", uid: "stud_3", name: "Vikram Malhotra", email: "vikram@campus.edu", isOnline: true, role: "Student", status: "suspended", isPro: true, uploads: 4, aiCalls: 78, workspacesCreated: 4, aiUsageCount: 78, workspaceCount: 4 }
+          { id: "stud_1", uid: "stud_1", name: "Rohan Sharma", email: "rohan@campus.edu", isOnline: true, role: "Student", status: "active", isPro: true, lastActive: new Date() },
+          { id: "stud_2", uid: "stud_2", name: "Ananya Iyer", email: "ananya@campus.edu", isOnline: false, role: "Student", status: "active", isPro: false, lastActive: new Date(Date.now() - 3600000 * 2) },
+          { id: "stud_3", uid: "stud_3", name: "Vikram Malhotra", email: "vikram@campus.edu", isOnline: true, role: "Student", status: "suspended", isPro: true, lastActive: new Date(Date.now() - 3600000 * 26) }
         ];
         if (isMounted) {
-          setStudents(fallbackList);
+          setRawUsers(fallbackList);
           setLoadingStudents(false);
         }
       });
     } else {
       setLoadingStudents(false);
+    }
+  }, [isAuthenticated]);
+
+  // Sync workspaces database (collectionGroup)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let isMounted = true;
+    if (db) {
+      try {
+        const subjectsRef = collectionGroup(db, 'subjects');
+        return onSnapshot(subjectsRef, (snapshot) => {
+          console.log("Realtime update fired");
+          const fetchedWorkspaces = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            userId: docSnap.ref.parent.parent.id, // Extract userId from doc path: users/{userId}/subjects/{subjectId}
+            ...docSnap.data()
+          }));
+          if (isMounted) {
+            setAllWorkspaces(fetchedWorkspaces);
+            setLoadingWorkspaces(false);
+          }
+        }, (err) => {
+          console.warn("Firestore workspaces collectionGroup sync failed, using offline fallback:", err);
+          const fallbackWorkspaces = [
+            { id: "work_stud_1_1", userId: "stud_1" },
+            { id: "work_stud_1_2", userId: "stud_1" },
+            { id: "work_stud_1_3", userId: "stud_1" },
+            { id: "work_stud_2_1", userId: "stud_2" },
+            { id: "work_stud_3_1", userId: "stud_3" },
+            { id: "work_stud_3_2", userId: "stud_3" },
+            { id: "work_stud_3_3", userId: "stud_3" },
+            { id: "work_stud_3_4", userId: "stud_3" }
+          ];
+          if (isMounted) {
+            setAllWorkspaces(fallbackWorkspaces);
+            setLoadingWorkspaces(false);
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to listen to collectionGroup subjects:", err);
+        setLoadingWorkspaces(false);
+      }
+    } else {
+      setLoadingWorkspaces(false);
     }
   }, [isAuthenticated]);
 
@@ -222,10 +222,12 @@ export default function AdminPanel() {
     if (db) {
       const logsRef = collection(db, 'activity_log');
       return onSnapshot(logsRef, (snapshot) => {
+        console.log("Realtime update fired");
         const fetchedLogs = snapshot.docs.map(docSnap => {
           const data = docSnap.data();
           return {
             id: docSnap.id,
+            userId: data.userId || 'anonymous',
             ...data,
             timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp || Date.now())
           };
@@ -238,11 +240,14 @@ export default function AdminPanel() {
       }, (err) => {
         console.warn("Firestore activity_log sync failed, using offline fallback:", err);
         const fallbackLogs = [
-          { id: "log1", type: "new_student_registered", userName: "Rohan Sharma", timestamp: new Date(Date.now() - 60000 * 2), metadata: { email: "rohan@campus.edu" } },
-          { id: "log2", type: "course_created", userName: "Ananya Iyer", timestamp: new Date(Date.now() - 60000 * 5), metadata: { courseName: "Operating Systems Core" } },
-          { id: "log3", type: "mock_exam_generated", userName: "Vikram Malhotra", timestamp: new Date(Date.now() - 60000 * 15), metadata: { subjectName: "Data Structures", marks: 70, difficulty: "Mixed" } },
-          { id: "log4", type: "mock_exam_submitted", userName: "Ananya Iyer", timestamp: new Date(Date.now() - 60000 * 20), metadata: { subjectName: "Operating Systems Core", score: 92, maxScore: 100 } },
-          { id: "log5", type: "subscription_upgraded", userName: "Vikram Malhotra", timestamp: new Date(Date.now() - 3600000), metadata: { plan: "Annual Pro", amount: 79.99 } }
+          { id: "log1", type: "new_student_registered", userId: "stud_1", userName: "Rohan Sharma", timestamp: new Date(Date.now() - 60000 * 2), metadata: { email: "rohan@campus.edu" } },
+          { id: "log2", type: "course_created", userId: "stud_2", userName: "Ananya Iyer", timestamp: new Date(Date.now() - 60000 * 5), metadata: { courseName: "Operating Systems Core" } },
+          { id: "log3", type: "mock_exam_generated", userId: "stud_3", userName: "Vikram Malhotra", timestamp: new Date(Date.now() - 60000 * 15), metadata: { subjectName: "Data Structures", marks: 70, difficulty: "Mixed" } },
+          { id: "log4", type: "mock_exam_submitted", userId: "stud_2", userName: "Ananya Iyer", timestamp: new Date(Date.now() - 60000 * 20), metadata: { subjectName: "Operating Systems Core", score: 92, maxScore: 100 } },
+          { id: "log5", type: "subscription_upgraded", userId: "stud_3", userName: "Vikram Malhotra", timestamp: new Date(Date.now() - 3600000), metadata: { plan: "Annual Pro", amount: 79.99 } },
+          { id: "log6", type: "ai_tutor_session_started", userId: "stud_1", userName: "Rohan Sharma", timestamp: new Date(), metadata: { courseName: "Computer Science Intro", topicName: "Variables", latencyMs: 800 } },
+          { id: "log7", type: "course_created", userId: "stud_1", userName: "Rohan Sharma", timestamp: new Date(), metadata: { courseName: "Computer Science Intro" } },
+          { id: "log8", type: "course_created", userId: "stud_1", userName: "Rohan Sharma", timestamp: new Date(), metadata: { courseName: "Computer Science Core" } }
         ];
         if (isMounted) {
           setActivityLogs(fallbackLogs);
@@ -253,6 +258,47 @@ export default function AdminPanel() {
       setLoadingLogs(false);
     }
   }, [isAuthenticated]);
+
+  // Aggregate user statistics in real-time
+  useEffect(() => {
+    const mergedStudents = rawUsers.map(user => {
+      const userId = user.id;
+
+      // 1. Get workspaces count
+      const userWorkspaces = allWorkspaces.filter(w => w.userId === userId);
+      const workspacesCount = userWorkspaces.length;
+
+      // 2. Get uploads count
+      const userUploads = activityLogs.filter(log => log.userId === userId && log.type === 'course_created').length;
+
+      // 3. Get AI calls count
+      const userAiCalls = activityLogs.filter(log => 
+        log.userId === userId &&
+        (log.type?.includes('ai') || 
+         log.type?.includes('session') || 
+         log.type?.includes('generated') ||
+         log.type?.includes('notes'))
+      ).length;
+
+      // Console debugging
+      console.log("User:", user.uid);
+      console.log("Uploads:", userUploads);
+      console.log("AI Calls:", userAiCalls);
+      console.log("Workspaces:", workspacesCount);
+
+      return {
+        ...user,
+        uploads: userUploads,
+        aiCalls: userAiCalls,
+        workspacesCreated: workspacesCount,
+        // Legacy props
+        aiUsageCount: userAiCalls,
+        workspaceCount: workspacesCount
+      };
+    });
+
+    setStudents(mergedStudents);
+  }, [rawUsers, allWorkspaces, activityLogs]);
 
   // Firestore user mutations
   const handleUpdateRole = async (userId, newRole) => {
@@ -303,6 +349,150 @@ export default function AdminPanel() {
 
   const handleResetPassword = (userId) => {
     showToast(`Password reset link dispatched for user ${userId}`);
+  };
+
+  // Sync roles database in real-time
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let isMounted = true;
+    if (db) {
+      const rolesRef = collection(db, 'roles');
+      return onSnapshot(rolesRef, (snapshot) => {
+        console.log("Realtime update fired");
+        
+        // Auto-populate default roles if empty
+        if (snapshot.empty) {
+          const defaultRoles = [
+            { name: 'Super Admin', permissions: { dashboard: true, users: true, analytics: true, aiUsage: true, settings: true } },
+            { name: 'Admin', permissions: { dashboard: true, users: true, analytics: true, aiUsage: true, settings: false } },
+            { name: 'Support', permissions: { dashboard: true, users: true, analytics: false, aiUsage: false, settings: false } }
+          ];
+          defaultRoles.forEach(async (role) => {
+            await addDoc(collection(db, 'roles'), role).catch(() => {});
+          });
+          return;
+        }
+
+        const fetchedRoles = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }));
+        if (isMounted) {
+          setRoles(fetchedRoles);
+        }
+      }, (err) => {
+        console.warn("Firestore roles sync failed, using default fallback:", err);
+        const fallbackRoles = [
+          { id: 'role_super_admin', name: 'Super Admin', permissions: { dashboard: true, users: true, analytics: true, aiUsage: true, settings: true } },
+          { id: 'role_admin', name: 'Admin', permissions: { dashboard: true, users: true, analytics: true, aiUsage: true, settings: false } },
+          { id: 'role_support', name: 'Support', permissions: { dashboard: true, users: true, analytics: false, aiUsage: false, settings: false } }
+        ];
+        if (isMounted) {
+          setRoles(fallbackRoles);
+        }
+      });
+    }
+  }, [isAuthenticated]);
+
+  // Sync sessions database in real-time (collectionGroup)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let isMounted = true;
+    if (db) {
+      try {
+        const sessionsRef = collectionGroup(db, 'sessions');
+        return onSnapshot(sessionsRef, (snapshot) => {
+          console.log("Realtime update fired");
+          const fetchedSessions = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            userId: docSnap.ref.parent.parent.id, // Extract userId from doc path: users/{userId}/sessions/{sessionId}
+            ...docSnap.data()
+          }));
+          if (isMounted) {
+            setSessions(fetchedSessions);
+          }
+        }, (err) => {
+          console.warn("Firestore sessions collectionGroup sync failed, using offline fallback:", err);
+          const fallbackSessions = [
+            { id: 'sess_1', userId: 'stud_1', email: 'rohan@campus.edu', loginTime: new Date(Date.now() - 3600000), lastActive: new Date(), userAgent: navigator.userAgent, status: 'active' },
+            { id: 'sess_2', userId: 'stud_3', email: 'vikram@campus.edu', loginTime: new Date(Date.now() - 3600000 * 24), lastActive: new Date(Date.now() - 3600000 * 2), userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15', status: 'inactive' }
+          ];
+          if (isMounted) {
+            setSessions(fallbackSessions);
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to listen to sessions collectionGroup:", err);
+      }
+    }
+  }, [isAuthenticated]);
+
+  // Admin and Role mutations
+  const handleUpdateAdminRole = async (userId, adminRole) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { adminRole });
+      showToast(`Admin permissions level modified`);
+    } catch (err) {
+      setStudents(prev => prev.map(s => s.id === userId ? { ...s, adminRole } : s));
+      showToast(`Admin level updated locally`);
+    }
+  };
+
+  const handleCreateRole = async (name, permissions) => {
+    try {
+      if (db) {
+        await addDoc(collection(db, 'roles'), {
+          name,
+          permissions,
+          createdAt: serverTimestamp()
+        });
+      }
+      showToast(`Role ${name} created`);
+    } catch (err) {
+      showToast(`Role created locally`);
+    }
+  };
+
+  const handleUpdateRolePermissions = async (roleId, permissionKey, value) => {
+    try {
+      if (db) {
+        const roleRef = doc(db, 'roles', roleId);
+        await updateDoc(roleRef, {
+          [`permissions.${permissionKey}`]: value
+        });
+      }
+      showToast(`Role permissions modified`);
+    } catch (err) {
+      showToast(`Role permissions modified locally`);
+    }
+  };
+
+  const handleDeleteRole = async (roleId) => {
+    try {
+      if (db) {
+        const roleRef = doc(db, 'roles', roleId);
+        await deleteDoc(roleRef);
+      }
+      showToast(`Role deleted successfully`);
+    } catch (err) {
+      showToast(`Role deleted locally`);
+    }
+  };
+
+  const handleRevokeSession = async (userId, sessionId) => {
+    try {
+      if (db) {
+        const sessionRef = doc(db, 'users', userId, 'sessions', sessionId);
+        await updateDoc(sessionRef, {
+          status: 'revoked',
+          revokedAt: serverTimestamp()
+        });
+      }
+      showToast(`Session revoked`);
+    } catch (err) {
+      showToast(`Session revoked locally`);
+    }
   };
 
   const handleCreateAdmin = async (e) => {
@@ -363,14 +553,43 @@ export default function AdminPanel() {
   // Real-time live analytics aggregator
   const stats = useMemo(() => {
     const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const activeNowCount = students.filter(s => s.isOnline).length;
+    const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    // Active now count: isOnline or had activity within last 15 minutes
+    const activeNowCount = students.filter(s => {
+      const lastActive = s.lastActive?.toDate ? s.lastActive.toDate() : (s.lastActive ? new Date(s.lastActive) : null);
+      return s.isOnline || (lastActive && lastActive >= fifteenMinutesAgo);
+    }).length;
 
-    const dau = Math.max(activeNowCount, 3);
-    const wau = Math.max(dau, 12);
-    const mau = Math.max(wau, 24);
+    // Today's active users (DAU): activity matching today's date string
+    const today = new Date();
+    const todayUsers = students.filter(user => {
+      const lastActive = user.lastActive?.toDate ? user.lastActive.toDate() : (user.lastActive ? new Date(user.lastActive) : null);
+      return (
+        lastActive &&
+        lastActive.toDateString() === today.toDateString()
+      );
+    });
+    const dau = todayUsers.length;
 
-    const newUsersToday = activityLogs.filter(log => log.type === 'new_student_registered' && log.timestamp >= oneDayAgo).length;
+    // WAU: active in last 7 days
+    const wau = students.filter(user => {
+      const lastActive = user.lastActive?.toDate ? user.lastActive.toDate() : (user.lastActive ? new Date(user.lastActive) : null);
+      return lastActive && lastActive >= sevenDaysAgo;
+    }).length;
+
+    // MAU: active in last 30 days
+    const mau = students.filter(user => {
+      const lastActive = user.lastActive?.toDate ? user.lastActive.toDate() : (user.lastActive ? new Date(user.lastActive) : null);
+      return lastActive && lastActive >= thirtyDaysAgo;
+    }).length;
+
+    const newUsersToday = activityLogs.filter(log => 
+      log.type === 'new_student_registered' && 
+      new Date(log.timestamp).toDateString() === today.toDateString()
+    ).length;
 
     let studentCount = 0;
     let adminCount = 0;
@@ -380,18 +599,41 @@ export default function AdminPanel() {
     });
 
     const premiumCount = students.filter(s => s.isPro).length;
-    const totalCourses = students.reduce((acc, curr) => acc + (curr.workspaceCount || 0), 0) || 5;
+    const totalCourses = allWorkspaces.length;
 
-    const totalAiRequests = activityLogs.filter(log => log.type?.includes('ai') || log.type?.includes('session') || log.type?.includes('generated')).length || 154;
-    const aiRequestsToday = Math.max(totalAiRequests, 12);
+    const totalAiRequests = activityLogs.filter(log => 
+      log.type?.includes('ai') || 
+      log.type?.includes('session') || 
+      log.type?.includes('generated') ||
+      log.type?.includes('notes')
+    ).length;
 
-    const notesGenerated = activityLogs.filter(log => log.type === 'course_created').length || 24;
-    const chatTutorSessions = activityLogs.filter(log => log.type?.includes('tutor')).length || 45;
-    const mockExamsGenerated = activityLogs.filter(log => log.type?.includes('exam')).length || 18;
-    const mockExamsToday = 3;
+    const aiRequestsToday = activityLogs.filter(log => {
+      const logDate = log.timestamp ? new Date(log.timestamp) : null;
+      return logDate && 
+        logDate.toDateString() === today.toDateString() &&
+        (log.type?.includes('ai') || 
+         log.type?.includes('session') || 
+         log.type?.includes('generated') ||
+         log.type?.includes('notes'));
+    }).length;
 
-    return {
-      dau, wau, mau,
+    const notesGenerated = activityLogs.filter(log => log.type === 'course_created').length;
+    const chatTutorSessions = activityLogs.filter(log => log.type?.includes('tutor')).length;
+    const mockExamsGenerated = activityLogs.filter(log => log.type?.includes('exam')).length;
+    
+    const mockExamsToday = activityLogs.filter(log => {
+      const logDate = log.timestamp ? new Date(log.timestamp) : null;
+      return logDate && 
+        logDate.toDateString() === today.toDateString() &&
+        log.type?.includes('exam');
+    }).length;
+
+    const statsObj = {
+      dau, 
+      wau, 
+      mau,
+      activeNowCount,
       newUsersToday,
       studentCount,
       adminCount,
@@ -404,16 +646,21 @@ export default function AdminPanel() {
       mockExamsGenerated,
       mockExamsToday,
       avgLatency: 1.1,
-      totalTokens: "1.2M",
-      tokenCost: 0.18,
-      failedAiRequests: 0,
+      totalTokens: `${(totalAiRequests * 1.25 / 1000).toFixed(1)}k`,
+      tokenCost: parseFloat((totalAiRequests * 0.00015).toFixed(4)),
+      failedAiRequests: activityLogs.filter(log => log.type?.includes('failed') || log.type?.includes('error') || log.metadata?.success === false).length,
       avgScore: 88,
-      totalErrors: 0,
+      totalErrors: activityLogs.filter(log => log.type === 'system_error').length,
       apiSuccessRate: 100,
       totalRevenue: premiumCount * 10.00,
       mrr: premiumCount * 10.00
     };
-  }, [students, activityLogs]);
+
+    console.log("Today's active:", todayUsers);
+    console.log("Overview stats:", statsObj);
+
+    return statsObj;
+  }, [students, allWorkspaces, activityLogs]);
 
   // Switch category navigation helper
   const handleSelectCategory = (catId) => {
@@ -488,7 +735,7 @@ export default function AdminPanel() {
     );
   }
 
-  const isLoading = loadingStudents || loadingLogs;
+  const isLoading = loadingStudents || loadingLogs || loadingWorkspaces;
 
   return (
     <div className="h-screen w-screen bg-bg-secondary text-primary flex overflow-hidden transition-colors duration-300 font-sans">
@@ -836,6 +1083,30 @@ export default function AdminPanel() {
               onDelete={handleDeleteUser}
               onUpgradePlan={handleUpgradePlan}
               onResetPassword={handleResetPassword}
+              role={adminRole}
+              showToast={showToast}
+            />
+          ) : activeCategory === "USER_MANAGEMENT" && activeSubView === "Admins" ? (
+            <AdminsManagement
+              students={students}
+              onUpdateRole={handleUpdateRole}
+              onUpdateAdminRole={handleUpdateAdminRole}
+              role={adminRole}
+              showToast={showToast}
+            />
+          ) : activeCategory === "USER_MANAGEMENT" && activeSubView === "Roles & Permissions" ? (
+            <RolesManagement
+              roles={roles}
+              onCreateRole={handleCreateRole}
+              onUpdateRolePermissions={handleUpdateRolePermissions}
+              onDeleteRole={handleDeleteRole}
+              role={adminRole}
+              showToast={showToast}
+            />
+          ) : activeCategory === "USER_MANAGEMENT" && activeSubView === "User Sessions" ? (
+            <UserSessions
+              sessions={sessions}
+              onRevokeSession={handleRevokeSession}
               role={adminRole}
               showToast={showToast}
             />

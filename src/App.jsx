@@ -1,6 +1,6 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './services/firebase/firebase';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { WifiOff, Loader2 } from 'lucide-react';
@@ -78,9 +78,16 @@ const LoadingFallback = () => (
 export default function App() {
   useEffect(() => {
     let userRef = null;
+    let unsubSession = null;
     const startTime = Date.now();
-
-    const unsub = auth.onAuthStateChanged((user) => {
+ 
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      // Cleanup previous session listener if any
+      if (unsubSession) {
+        unsubSession();
+        unsubSession = null;
+      }
+ 
       if (!user) {
         if (userRef) {
           updateDoc(userRef, {
@@ -91,7 +98,7 @@ export default function App() {
         }
         return;
       }
-
+ 
       userRef = doc(db, 'users', user.uid);
       setDoc(userRef, {
         name: user.displayName || user.email.split('@')[0],
@@ -99,8 +106,37 @@ export default function App() {
         isOnline: true,
         lastActive: serverTimestamp()
       }, { merge: true }).catch(err => console.warn("Firestore status set failed:", err));
+ 
+      // Session tracking
+      try {
+        let sessionId = sessionStorage.getItem('user_session_id');
+        if (!sessionId) {
+          sessionId = 'sess_' + Math.random().toString(36).substring(2, 11);
+          sessionStorage.setItem('user_session_id', sessionId);
+        }
+        const sessionRef = doc(db, 'users', user.uid, 'sessions', sessionId);
+        setDoc(sessionRef, {
+          id: sessionId,
+          userId: user.uid,
+          email: user.email,
+          loginTime: serverTimestamp(),
+          lastActive: serverTimestamp(),
+          userAgent: navigator.userAgent,
+          status: 'active'
+        }, { merge: true }).catch(err => console.warn("Session doc create failed:", err));
+ 
+        unsubSession = onSnapshot(sessionRef, (snap) => {
+          if (snap.exists() && snap.data().status === 'revoked') {
+            auth.signOut();
+            sessionStorage.removeItem('user_session_id');
+            window.location.href = '/login';
+          }
+        });
+      } catch (sessErr) {
+        console.warn("Session tracking error:", sessErr);
+      }
     });
-
+ 
     const handleUnload = () => {
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
       analyticsService.logEvent('session_duration', { durationSeconds }).catch(() => {});
@@ -110,12 +146,26 @@ export default function App() {
           lastActive: serverTimestamp()
         }).catch(err => console.warn("Firestore status unload update failed:", err));
       }
+      
+      // Revoke or mark user session offline on unload
+      try {
+        const sessionId = sessionStorage.getItem('user_session_id');
+        const user = auth.currentUser;
+        if (user && sessionId) {
+          const sessionRef = doc(db, 'users', user.uid, 'sessions', sessionId);
+          updateDoc(sessionRef, {
+            status: 'inactive',
+            lastActive: serverTimestamp()
+          }).catch(() => {});
+        }
+      } catch (err) {}
     };
-
+ 
     window.addEventListener('beforeunload', handleUnload);
-
+ 
     return () => {
-      unsub();
+      unsubAuth();
+      if (unsubSession) unsubSession();
       window.removeEventListener('beforeunload', handleUnload);
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
       analyticsService.logEvent('session_duration', { durationSeconds }).catch(() => {});
