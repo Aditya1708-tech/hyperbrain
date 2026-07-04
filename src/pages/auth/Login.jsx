@@ -58,27 +58,29 @@ export default function LoginScreen() {
     }
   };
 
-  const sendWelcomeEmail = async ({ email, name }) => {
-    console.log("Sending welcome email...");
-    try {
-      const res = await fetch('/api/welcome', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          to: email,
-          name: name
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Request failed');
-      }
-      console.log("Welcome email sent successfully");
-    } catch (error) {
-      console.error("Welcome email failed:", error);
+  const sendWelcomeEmail = async (email, name) => {
+    console.log("sendWelcomeEmail() called");
+    console.log("Email payload:", {
+      email: email,
+      name: name
+    });
+    console.log("API key exists:", !!import.meta.env.VITE_RESEND_API_KEY);
+
+    const res = await fetch('/api/welcome', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        to: email,
+        name: name
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Request failed');
     }
+    return data;
   };
 
   const handleGoogleSignIn = async () => {
@@ -116,11 +118,13 @@ export default function LoginScreen() {
               createdAt: serverTimestamp()
             });
             
-            // send welcome email only once
-            await sendWelcomeEmail({
-              email: user.email,
-              name: user.displayName || user.email.split('@')[0]
-            });
+            // Wrap welcome email sending in try/catch as specified
+            try {
+              const result = await sendWelcomeEmail(user.email, user.displayName || user.email.split('@')[0]);
+              console.log("Email success:", result);
+            } catch (error) {
+              console.error("Email failed:", error);
+            }
           } catch (writeErr) {
             console.error("Firestore registration write error:", writeErr);
             throw new Error("Could not complete user registration in database. Please check Firestore security rules.");
