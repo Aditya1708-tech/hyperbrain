@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useContext } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '../../services/firebase/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, where, getDocs, collectionGroup } from 'firebase/firestore';
-import { db } from '../../services/firebase/firebase';
 import { notificationService } from '../../services/firebase/firestoreService';
 import { 
   Users, LayoutDashboard, BookOpen, CheckCircle, LogOut, ChevronRight, 
@@ -69,14 +72,28 @@ const CATEGORIES = {
 
 export default function AdminPanel() {
   const { theme, toggleTheme } = useContext(ThemeContext);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-  
-  // Navigation states
-  const [activeCategory, setActiveCategory] = useState("DASHBOARD");
-  const [activeSubView, setActiveSubView] = useState("Overview");
+  const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const routeMapping = {
+    '/admin/dashboard': { category: 'DASHBOARD', subView: 'Overview' },
+    '/admin/analytics': { category: 'DASHBOARD', subView: 'Real-time Analytics' },
+    '/admin/activity': { category: 'DASHBOARD', subView: 'Activity Feed' },
+    '/admin/users': { category: 'USER_MANAGEMENT', subView: 'Students' },
+    '/admin/admins': { category: 'USER_MANAGEMENT', subView: 'Admins' },
+    '/admin/roles': { category: 'USER_MANAGEMENT', subView: 'Roles & Permissions' },
+    '/admin/sessions': { category: 'USER_MANAGEMENT', subView: 'User Sessions' },
+    '/admin/settings': { category: 'SETTINGS', subView: 'Email Templates' },
+    '/admin/workspaces': { category: 'COURSE_MANAGEMENT', subView: 'Workspaces List' },
+    '/admin/subscriptions': { category: 'SUBSCRIPTIONS', subView: 'Plans & Billing' },
+    '/admin/system-api': { category: 'SYSTEM', subView: 'API Monitoring' },
+    '/admin/system-logs': { category: 'SYSTEM', subView: 'Logs Diagnostics' },
+  };
+
+  const currentRoute = routeMapping[location.pathname] || { category: 'DASHBOARD', subView: 'Overview' };
+  const activeCategory = currentRoute.category;
+  const activeSubView = currentRoute.subView;
 
   // Tab change loading simulation to show skeleton transitions
   const [isTabLoading, setIsTabLoading] = useState(false);
@@ -126,20 +143,9 @@ export default function AdminPanel() {
     return () => clearTimeout(timer);
   }, [activeSubView, activeCategory]);
 
-  // Login handler
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (username.trim() === "Aditya" && password.trim() === (import.meta.env.VITE_ADMIN_PASSWORD || "HelloWorld!")) {
-      setIsAuthenticated(true);
-      setAuthError('');
-    } else {
-      setAuthError("Access Denied: Incorrect Username or Password.");
-    }
-  };
-
   // Sync raw users database
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!currentUser) return;
     let isMounted = true;
     if (db) {
       const usersRef = collection(db, 'users');
@@ -169,11 +175,11 @@ export default function AdminPanel() {
     } else {
       setLoadingStudents(false);
     }
-  }, [isAuthenticated]);
+  }, [currentUser]);
 
   // Sync workspaces database (collectionGroup)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!currentUser) return;
     let isMounted = true;
     if (db) {
       try {
@@ -213,11 +219,11 @@ export default function AdminPanel() {
     } else {
       setLoadingWorkspaces(false);
     }
-  }, [isAuthenticated]);
+  }, [currentUser]);
 
   // Sync activity logs database
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!currentUser) return;
     let isMounted = true;
     if (db) {
       const logsRef = collection(db, 'activity_log');
@@ -257,7 +263,7 @@ export default function AdminPanel() {
     } else {
       setLoadingLogs(false);
     }
-  }, [isAuthenticated]);
+  }, [currentUser]);
 
   // Aggregate user statistics in real-time
   useEffect(() => {
@@ -353,7 +359,7 @@ export default function AdminPanel() {
 
   // Sync roles database in real-time
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!currentUser) return;
     let isMounted = true;
     if (db) {
       const rolesRef = collection(db, 'roles');
@@ -392,11 +398,11 @@ export default function AdminPanel() {
         }
       });
     }
-  }, [isAuthenticated]);
+  }, [currentUser]);
 
   // Sync sessions database in real-time (collectionGroup)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!currentUser) return;
     let isMounted = true;
     if (db) {
       try {
@@ -425,7 +431,7 @@ export default function AdminPanel() {
         console.warn("Failed to listen to sessions collectionGroup:", err);
       }
     }
-  }, [isAuthenticated]);
+  }, [currentUser]);
 
   // Admin and Role mutations
   const handleUpdateAdminRole = async (userId, adminRole) => {
@@ -664,76 +670,20 @@ export default function AdminPanel() {
 
   // Switch category navigation helper
   const handleSelectCategory = (catId) => {
-    setActiveCategory(catId);
-    setActiveSubView(CATEGORIES[catId].subViews[0]);
+    const defaultSubViews = {
+      DASHBOARD: '/admin/dashboard',
+      USER_MANAGEMENT: '/admin/users',
+      COURSE_MANAGEMENT: '/admin/workspaces',
+      AI_MANAGEMENT: '/admin/analytics',
+      SUBSCRIPTIONS: '/admin/subscriptions',
+      SYSTEM: '/admin/system-api',
+      SETTINGS: '/admin/settings',
+    };
+    const targetPath = defaultSubViews[catId] || '/admin/dashboard';
+    navigate(targetPath);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-bg-secondary text-primary flex flex-col items-center justify-center p-6 transition-colors duration-300 relative">
-        <div className="absolute top-6 right-6">
-          <button
-            onClick={toggleTheme}
-            className="p-2 hover:bg-hover-theme rounded-xl text-slate-500 transition-colors"
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-        </div>
 
-        <div className="flex flex-col items-center text-center mb-8 select-none">
-          <img
-            src={hyperBrainLogo}
-            alt="HyperBrain Logo"
-            className="h-16 w-auto object-contain mb-4 hover:scale-105 transition-transform"
-          />
-          <h2 className="text-xl font-bold tracking-tight text-primary font-sans">HyperBrain Platform</h2>
-          <p className="text-muted text-xs font-semibold uppercase tracking-wider mt-1">
-            Super Admin Control Center
-          </p>
-        </div>
-
-        <Card className="w-full max-w-[380px] bg-card border border-border-theme shadow-2xl p-8 space-y-6 text-primary">
-          {authError && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-xs font-semibold text-center">
-              {authError}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              label="Admin ID"
-              icon={User}
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
-              className="bg-bg-secondary border-border-theme text-primary placeholder-muted"
-            />
-
-            <Input
-              label="Access Code"
-              icon={Key}
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="bg-bg-secondary border-border-theme text-primary placeholder-muted"
-            />
-
-            <Button
-              type="submit"
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md"
-            >
-              SECURE AUTHORIZATION
-            </Button>
-          </form>
-        </Card>
-      </div>
-    );
-  }
 
   const isLoading = loadingStudents || loadingLogs || loadingWorkspaces;
 
@@ -782,19 +732,37 @@ export default function AdminPanel() {
                   {/* Render nested sub-views if selected */}
                   {isSelected && (
                     <div className="pl-6 pt-1 space-y-0.5 border-l border-border-theme ml-5">
-                      {category.subViews.map(sub => (
-                        <button
-                          key={sub}
-                          onClick={() => setActiveSubView(sub)}
-                          className={`w-full text-left py-1.5 px-3 text-[11px] font-semibold rounded-lg transition-colors block ${
-                            activeSubView === sub
-                              ? 'text-primary bg-bg-secondary font-bold border border-border-theme/40'
-                              : 'text-muted hover:text-primary hover:bg-bg-secondary/40'
-                          }`}
-                        >
-                          {sub}
-                        </button>
-                      ))}
+                      {category.subViews.map(sub => {
+                        const subViewPaths = {
+                          'Overview': '/admin/dashboard',
+                          'Real-time Analytics': '/admin/analytics',
+                          'Activity Feed': '/admin/activity',
+                          'Students': '/admin/users',
+                          'Admins': '/admin/admins',
+                          'Roles & Permissions': '/admin/roles',
+                          'User Sessions': '/admin/sessions',
+                          'Workspaces List': '/admin/workspaces',
+                          'Telemetry Analytics': '/admin/analytics',
+                          'Plans & Billing': '/admin/subscriptions',
+                          'API Monitoring': '/admin/system-api',
+                          'Logs Diagnostics': '/admin/system-logs',
+                          'Email Templates': '/admin/settings',
+                        };
+                        const targetPath = subViewPaths[sub] || '/admin/dashboard';
+                        return (
+                          <button
+                            key={sub}
+                            onClick={() => navigate(targetPath)}
+                            className={`w-full text-left py-1.5 px-3 text-[11px] font-semibold rounded-lg transition-colors block ${
+                              activeSubView === sub
+                                ? 'text-primary bg-bg-secondary font-bold border border-border-theme/40'
+                                : 'text-muted hover:text-primary hover:bg-bg-secondary/40'
+                            }`}
+                          >
+                            {sub}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -810,9 +778,7 @@ export default function AdminPanel() {
           </div>
           <button
             onClick={() => {
-              setIsAuthenticated(false);
-              setUsername('');
-              setPassword('');
+              signOut(auth);
             }}
             className="w-full flex items-center justify-center space-x-2 border border-red-200 dark:border-red-900 bg-red-500/10 hover:bg-red-500/20 dark:bg-red-955/20 dark:hover:bg-red-955/50 text-red-600 dark:text-red-400 font-bold py-2.5 rounded-xl transition-all text-xs"
           >
@@ -980,15 +946,19 @@ export default function AdminPanel() {
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                 className="flex items-center space-x-2.5 p-1.5 hover:bg-bg-secondary rounded-xl transition-colors text-xs font-bold"
               >
-                <div className="h-7 w-7 bg-blue-600 rounded-full flex items-center justify-center text-white">A</div>
-                <span className="hidden sm:inline">Aditya</span>
+                <div className="h-7 w-7 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                  {currentUser?.email ? currentUser.email[0].toUpperCase() : 'A'}
+                </div>
+                <span className="hidden sm:inline">
+                  {currentUser?.displayName || currentUser?.email?.split('@')[0]}
+                </span>
               </button>
 
               {showProfileDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-card border border-border-theme rounded-2xl shadow-2xl py-1.5 z-50 text-xs text-primary">
                   <div className="px-3.5 py-2 border-b border-border-theme font-semibold">
                     <p className="text-[9px] font-black uppercase text-muted tracking-wider">Session Profile</p>
-                    <p className="font-bold truncate mt-0.5">aditya@hyperbrain.ai</p>
+                    <p className="font-bold truncate mt-0.5">{currentUser?.email}</p>
                   </div>
                   <div className="px-3.5 py-2 border-b border-border-theme font-semibold space-y-1">
                     <p className="text-[9px] font-black uppercase text-muted tracking-wider">Change Session Role</p>
@@ -1008,7 +978,7 @@ export default function AdminPanel() {
                   </div>
                   <button
                     onClick={() => {
-                      setIsAuthenticated(false);
+                      signOut(auth);
                       setShowProfileDropdown(false);
                     }}
                     className="w-full text-left px-3.5 py-2 hover:bg-red-50 dark:hover:bg-red-955/20 text-red-500 font-bold"

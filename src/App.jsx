@@ -21,6 +21,7 @@ import Exam from './pages/student/Exam';
 // Lazy loaded feature areas and charts
 const Stats = lazy(() => import('./pages/student/Stats'));
 const AdminPanel = lazy(() => import('./pages/admin/AdminPanel'));
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const Tutor = lazy(() => import('./pages/student/Tutor'));
 const MockExamSetup = lazy(() => import('./pages/student/MockExamSetup'));
 const Flashcards = lazy(() => import('./pages/student/Flashcards'));
@@ -195,7 +196,19 @@ export default function App() {
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
               <Route path="/exam/:subjectName" element={<ProtectedRoute><Exam /></ProtectedRoute>} />
-              <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/analytics" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/settings" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/roles" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/sessions" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/activity" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/admins" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/workspaces" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/subscriptions" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/system-api" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/admin/system-logs" element={<AdminRoute><AdminPanel /></AdminRoute>} />
               
               {/* New distraction-free routes */}
               <Route path="/tutor" element={<ProtectedRoute><Tutor /></ProtectedRoute>} />
