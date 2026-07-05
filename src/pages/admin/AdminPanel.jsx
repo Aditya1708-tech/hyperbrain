@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '../../services/firebase/firebase';
-import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../services/firebase/firebase';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { notificationService } from '../../services/firebase/firestoreService';
 import { 
@@ -72,9 +70,10 @@ const CATEGORIES = {
 
 export default function AdminPanel() {
   const { theme, toggleTheme } = useContext(ThemeContext);
-  const { currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isAdminAuthenticated = sessionStorage.getItem("hyperbrain_admin") === "authenticated";
+  const adminUsername = import.meta.env.VITE_ADMIN_USERNAME || "Aditya";
 
   const routeMapping = {
     '/admin/dashboard': { category: 'DASHBOARD', subView: 'Overview' },
@@ -145,7 +144,7 @@ export default function AdminPanel() {
 
   // Sync raw users database
   useEffect(() => {
-    if (!currentUser) return;
+    if (!isAdminAuthenticated) return;
     let isMounted = true;
     if (db) {
       const usersRef = collection(db, 'users');
@@ -175,11 +174,11 @@ export default function AdminPanel() {
     } else {
       setLoadingStudents(false);
     }
-  }, [currentUser]);
+  }, [isAdminAuthenticated]);
 
   // Sync workspaces database (collectionGroup)
   useEffect(() => {
-    if (!currentUser) return;
+    if (!isAdminAuthenticated) return;
     let isMounted = true;
     if (db) {
       try {
@@ -219,11 +218,11 @@ export default function AdminPanel() {
     } else {
       setLoadingWorkspaces(false);
     }
-  }, [currentUser]);
+  }, [isAdminAuthenticated]);
 
   // Sync activity logs database
   useEffect(() => {
-    if (!currentUser) return;
+    if (!isAdminAuthenticated) return;
     let isMounted = true;
     if (db) {
       const logsRef = collection(db, 'activity_log');
@@ -263,7 +262,7 @@ export default function AdminPanel() {
     } else {
       setLoadingLogs(false);
     }
-  }, [currentUser]);
+  }, [isAdminAuthenticated]);
 
   // Aggregate user statistics in real-time
   useEffect(() => {
@@ -359,7 +358,7 @@ export default function AdminPanel() {
 
   // Sync roles database in real-time
   useEffect(() => {
-    if (!currentUser) return;
+    if (!isAdminAuthenticated) return;
     let isMounted = true;
     if (db) {
       const rolesRef = collection(db, 'roles');
@@ -398,11 +397,11 @@ export default function AdminPanel() {
         }
       });
     }
-  }, [currentUser]);
+  }, [isAdminAuthenticated]);
 
   // Sync sessions database in real-time (collectionGroup)
   useEffect(() => {
-    if (!currentUser) return;
+    if (!isAdminAuthenticated) return;
     let isMounted = true;
     if (db) {
       try {
@@ -431,7 +430,7 @@ export default function AdminPanel() {
         console.warn("Failed to listen to sessions collectionGroup:", err);
       }
     }
-  }, [currentUser]);
+  }, [isAdminAuthenticated]);
 
   // Admin and Role mutations
   const handleUpdateAdminRole = async (userId, adminRole) => {
@@ -778,7 +777,8 @@ export default function AdminPanel() {
           </div>
           <button
             onClick={() => {
-              signOut(auth);
+              sessionStorage.removeItem("hyperbrain_admin");
+              navigate("/admin");
             }}
             className="w-full flex items-center justify-center space-x-2 border border-red-200 dark:border-red-900 bg-red-500/10 hover:bg-red-500/20 dark:bg-red-955/20 dark:hover:bg-red-955/50 text-red-600 dark:text-red-400 font-bold py-2.5 rounded-xl transition-all text-xs"
           >
@@ -947,10 +947,10 @@ export default function AdminPanel() {
                 className="flex items-center space-x-2.5 p-1.5 hover:bg-bg-secondary rounded-xl transition-colors text-xs font-bold"
               >
                 <div className="h-7 w-7 bg-blue-600 rounded-full flex items-center justify-center text-white">
-                  {currentUser?.email ? currentUser.email[0].toUpperCase() : 'A'}
+                  {adminUsername[0].toUpperCase()}
                 </div>
                 <span className="hidden sm:inline">
-                  {currentUser?.displayName || currentUser?.email?.split('@')[0]}
+                  {adminUsername}
                 </span>
               </button>
 
@@ -958,7 +958,7 @@ export default function AdminPanel() {
                 <div className="absolute right-0 mt-2 w-48 bg-card border border-border-theme rounded-2xl shadow-2xl py-1.5 z-50 text-xs text-primary">
                   <div className="px-3.5 py-2 border-b border-border-theme font-semibold">
                     <p className="text-[9px] font-black uppercase text-muted tracking-wider">Session Profile</p>
-                    <p className="font-bold truncate mt-0.5">{currentUser?.email}</p>
+                    <p className="font-bold truncate mt-0.5">{adminUsername}</p>
                   </div>
                   <div className="px-3.5 py-2 border-b border-border-theme font-semibold space-y-1">
                     <p className="text-[9px] font-black uppercase text-muted tracking-wider">Change Session Role</p>
@@ -978,10 +978,11 @@ export default function AdminPanel() {
                   </div>
                   <button
                     onClick={() => {
-                      signOut(auth);
+                      sessionStorage.removeItem("hyperbrain_admin");
                       setShowProfileDropdown(false);
+                      navigate("/admin");
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-red-50 dark:hover:bg-red-955/20 text-red-500 font-bold"
+                    className="w-full text-left px-3.5 py-2 hover:bg-red-50 dark:hover:bg-red-955/20 text-red-550 font-bold"
                   >
                     Terminate Session
                   </button>
