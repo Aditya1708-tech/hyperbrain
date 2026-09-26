@@ -1,0 +1,228 @@
+:root {
+  /* Light Theme Variables */
+  --bg-primary: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F1F5F9;
+  --card-bg: #FFFFFF;
+  --hover-bg: #F1F5F9;
+  
+  --accent-color: #2563EB;      /* Primary: blue */
+  --accent-hover: #1d4ed8;
+  --accent-secondary: #06B6D4;  /* Accent: cyan */
+  --accent-support: #8B5CF6;
+  
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  
+  --border-color: #E2E8F0;
+  --border-hover: #CBD5E1;
+  
+  --success: #22C55E;
+  --warning: #FACC15;
+  --error: #EF4444;
+  --info: #38BDF8;
+
+  --box-shadow-glow: 0 2px 4px rgba(0,0,0,0.01);
+
+  /* backwards compatibility for h-* mapping */
+  --h-bg: var(--bg-primary);
+  --h-sec: var(--bg-secondary);
+  --h-card: var(--card-bg);
+  --h-primary: var(--text-primary);
+  --h-secondary: var(--text-secondary);
+  --h-border: var(--border-color);
+}
+
+.dark {
+  /* Dark Theme Variables (Immersive Cyber-Workspace) */
+  --bg-primary: #04070D;
+  --bg-secondary: #0A0F1C;
+  --bg-tertiary: #0E1628;
+  --card-bg: #111827;
+  --hover-bg: #172033;
+  
+  --accent-color: #00E5FF;       /* Primary: cyan */
+  --accent-hover: #35F3FF;
+  --accent-secondary: #2563EB;   /* Secondary: blue */
+  --accent-support: #8B5CF6;     /* Accent: purple */
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #D6E1F5;
+  --text-muted: #94A3B8;
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(0, 229, 255, 0.45);
+  
+  --success: #22C55E;
+  --warning: #FACC15;
+  --error: #EF4444;
+  --info: #38BDF8;
+
+  --box-shadow-glow: 0 0 20px rgba(0, 229, 255, 0.12);
+
+  /* backwards compatibility */
+  --h-bg: var(--bg-primary);
+  --h-sec: var(--bg-secondary);
+  --h-card: var(--card-bg);
+  --h-primary: var(--text-primary);
+  --h-secondary: var(--text-secondary);
+  --h-border: var(--border-color);
+}
+
+/* Premium Card Styles (Glow in Dark, Clean Shadow in Light) */
+.bg-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
+  border-radius: 1rem !important; /* 16px */
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(300px circle at var(--mouse-x, 0px) var(--mouse-y, 0px), rgba(37, 99, 235, 0.04), transparent 45%);
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bg-card:hover::before {
+  opacity: 1;
+}
+
+.bg-card:hover,
+.hover-card-trigger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04) !important;
+  border-color: var(--border-hover) !important;
+}
+
+.dark .bg-card {
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  background-color: rgba(17, 24, 39, 0.45) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+
+.dark .bg-card::before {
+  background: radial-gradient(300px circle at var(--mouse-x, 0px) var(--mouse-y, 0px), rgba(0, 229, 255, 0.08), transparent 45%) !important;
+}
+
+.dark .bg-card:hover,
+.dark .hover-card-trigger:hover {
+  border-color: var(--border-hover) !important;
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.12) !important;
+  transform: translateY(-2.5px);
+}
+
+/* Premium Inputs */
+.theme-input {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.theme-input::placeholder {
+  color: #94A3B8 !important;
+}
+
+.theme-input:focus {
+  outline: none;
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+.dark .theme-input {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #FFFFFF !important;
+}
+
+.dark .theme-input::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.dark .theme-input:focus {
+  border-color: var(--border-hover) !important;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.22) !important;
+}
+
+/* Premium Button Styling classes */
+.btn-premium-primary {
+  background-color: var(--accent-color) !important;
+  border: 1px solid rgba(15, 23, 42, 0.05) !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12) !important;
+  color: #FFFFFF !important;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-premium-primary:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+  background-color: var(--accent-hover) !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.2) !important;
+}
+
+.dark .btn-premium-primary {
+  background: linear-gradient(135deg, #00E5FF 0%, #2563EB 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.2) !important;
+}
+
+.dark .btn-premium-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 35px rgba(0, 229, 255, 0.35) !important;
+  background: linear-gradient(135deg, #35F3FF 0%, #1d4ed8 100%) !important;
+}
+
+.btn-premium-secondary {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #475569 !important;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-premium-secondary:hover:not(:disabled) {
+  border-color: #2563EB !important;
+  color: #2563EB !important;
+  background-color: #F8FAFC !important;
+}
+
+.dark .btn-premium-secondary {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0, 229, 255, 0.25) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark .btn-premium-secondary:hover:not(:disabled) {
+  border-color: var(--border-hover) !important;
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.15) !important;
+  background: rgba(0, 229, 255, 0.04) !important;
+}
+
+/* Premium Shimmer Skeleton Animation */
+@keyframes shimmer-effect {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.premium-shimmer {
+  background: linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer-effect 1.6s infinite linear;
+}
+
+.dark .premium-shimmer {
+  background: linear-gradient(90deg, #111827 25%, #172033 50%, #111827 75%) !important;
+}

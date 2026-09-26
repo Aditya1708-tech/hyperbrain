@@ -33,21 +33,25 @@ For administrators, the workspace provides real-time telemetry dashboards, subsc
 ## Tech Stack
 
 ### Frontend
-*   **React** (v19) - Component architecture and hooks management.
+*   **React** (v19) - Component architecture and reactive hooks management.
 *   **Vite** - Lightning-fast frontend development runtime and compiler.
 *   **Tailwind CSS** - Custom utility styling classes and dark-mode themes.
 *   **Lucide React** - High-quality clean SVG iconography package.
 *   **Framer Motion / GSAP** - Premium animations and layout shifts.
 
-### Backend & API
-*   **Firebase** - Distributed Client Auth SDK, Firestore security-hardened rules, and real-time database listener channels.
-*   **Serverless APIs** - Lightweight Vercel API functions serving the core LLM orchestration pipelines.
+### Backend
+*   **Express.js** (v5) - RESTful backend server handling Auth, AI pipelines, Billing, Analytics, Notifications, and Academics.
+*   **JWT & Authentication** - JSON Web Token authentication with role-based access control (Student / Administrator).
+
+### Database
+*   **MongoDB & Mongoose** - Schema-backed document database for Users, Workspaces, Topics, Notes, Flashcards, Mock Exams, Study Plans, Invoices, Subscriptions, and Activity Logs.
 
 ### Artificial Intelligence
-*   **Google Gemini** - Advanced `gemini-2.5-flash` model mapping syllabi, generating study plans, and auto-grading theoretical exam questions.
+*   **Google Gemini GenAI SDK (`@google/genai` v2.24)** - Powered by `gemini-2.5-flash` and `gemini-2.0-flash` models for 24/7 AI tutoring, syllabus extraction, notes compiling, flashcard generation, and theoretical exam auto-grading.
 
-### Deployment
-*   **Vercel** - Scale-ready production serverless hosting.
+### Deployment & Tooling
+*   **Concurrently** - Run frontend Vite client and Express backend server simultaneously with a single command (`npm run dev`).
+*   **Resend** - High-deliverability transactional emails.
 
 ---
 
